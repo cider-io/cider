@@ -3,6 +3,7 @@ package sysinfo
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -12,11 +13,7 @@ import (
 func SysInfo() map[string]string {
 
 	sysinfo := make(map[string]string)
-	multFactor := make(map[byte]int)
-
-	multFactor['G'] = 1024 * 1024 * 1024
-	multFactor['M'] = 1024 * 1024
-	multFactor['K'] = 1024
+	multFactor := map[byte]int{'G': 1024 * 1024 * 1024, 'M': 1024 * 1024, 'K': 1024}
 
 	os := runtime.GOOS
 	arch := runtime.GOARCH
@@ -27,7 +24,7 @@ func SysInfo() map[string]string {
 	} else if os == "linux" {
 		cmd = "free -b"
 	} else {
-		cmd = "mem"
+		cmd = "systeminfo"
 	}
 
 	memOut, err := exec.Command("bash", "-c", cmd).Output()
@@ -69,9 +66,24 @@ func SysInfo() map[string]string {
 
 	} else {
 		// Windows
-		// TODO: Implement parsing for windows
-		totalMemory := 0
-		freeMemory := 0
+
+		// We have the following fields that we need to
+		//   extract from the mem output
+		//
+		// Total Physical Memory:     7,168 MB
+		// Available Physical Memory: 5,374 MB
+		//
+
+		totalMemoryPattern, _ := regexp.Compile("Total Physical Memory: *(?P<amount>.*) (?P<units>.*B)")
+		submatches := totalMemoryPattern.FindStringSubmatch(memory)
+		amount, _ := strconv.ParseInt(strings.ReplaceAll(submatches[1], ",", ""), 10, 0)
+		totalMemory := int(amount) * multFactor[submatches[2][0]]
+
+		availableMemoryPattern, _ := regexp.Compile("Available Physical Memory: *(?P<amount>.*) (?P<units>.*B)")
+		submatches = availableMemoryPattern.FindStringSubmatch(memory)
+		amount, _ = strconv.ParseInt(strings.ReplaceAll(submatches[1], ",", ""), 10, 0)
+		freeMemory := int(amount) * multFactor[submatches[2][0]]
+
 		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
 		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)
 	}

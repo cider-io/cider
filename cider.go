@@ -1,7 +1,7 @@
 package main
 
 import (
-	"example.com/cider/sysinfo"
+	"cider/sysinfo"
 	"fmt"
 )
 

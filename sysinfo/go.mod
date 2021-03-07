@@ -1,3 +1,3 @@
-module example.com/cider/sysinfo
+module cider/sysinfo
 
 go 1.16
