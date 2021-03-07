@@ -70,6 +70,10 @@ func SysInfo() map[string]string {
 	} else {
 		// Windows
 		// TODO: Implement parsing for windows
+		totalMemory := 0
+		freeMemory := 0
+		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
+		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)
 	}
 
 	sysinfo["os"] = os
