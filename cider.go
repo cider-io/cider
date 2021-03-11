@@ -2,10 +2,11 @@ package main
 
 import (
 	"cider/sysinfo"
-	"fmt"
+	"cider/log"
 )
 
 func main() {
+	log.InitLogger(log.ToCiderLog)
 	sysinfo := sysinfo.SysInfo()
-	fmt.Println(sysinfo)
+	log.Logger.Println(sysinfo)
 }
