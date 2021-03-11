@@ -23,7 +23,7 @@ func Start() {
 	group := make (map[string]Member)
 	MyIp, err = getMyIp()
 	log.HandleError(log.Error, err)
-	group[MyIp] = Member{Reincarnation: 0}
+	group[MyIp] = Member{Version: 0}
 
 	// TODO: add introducer to the membership list after adding the introducer cli arg 
 	log.Logger.Println("Inital membership list:", group)
