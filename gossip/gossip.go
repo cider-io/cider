@@ -14,6 +14,7 @@ import (
 type Member struct {
 	Version int
 	Heartbeat int
+	LastUpdated time.Time
 	Failed bool
 }
 
@@ -54,14 +55,19 @@ func listenForGossip() {
 // TODO: gossip:
 func gossip() {
 	startTime := time.Now()
-	if time.Since(startTime) > heartbeatRate {
-		heartbeat(MyIp)
+	for {
+		if time.Since(startTime) > heartbeatRate {
+			heartbeat(MyIp)
+			startTime = time.Now()
+		}
 	}
 }
 
 // TODO: updateView:
 func updateView(neighborsView map[string]Member) {
-	log.Logger.Println(neighborsView)
+	for ip, member := range neighborsView {
+		prettyPrintMember(ip, member)
+	}
 }
 
 // getMyIp: Return this device's IP address on the WLAN
@@ -95,6 +101,16 @@ func getMyIp() (string, error) {
 	return "", errors.New("Your device is not connected to the LAN.")
 }
 
+func prettyPrintMember(ip string, member Member) {
+	summary := "[" + ip + "-" + strconv.Itoa(member.Version) + "]"
+	summary += " [♥:" + strconv.Itoa(member.Heartbeat) + "]"
+	summary += " [Last updated " + strconv.FormatInt(time.Since(member.LastUpdated).Milliseconds(), 10) + " ago]"
+	if member.Failed {
+		summary += " [FAILED]"
+	}
+	log.Logger.Println(summary)
+}
+
 // Start: Run gossip for group membership and failure detection
 func Start() {
 	var err error
@@ -106,10 +122,10 @@ func Start() {
 	infected = false // the node is initially uninfected
 
 	// initial membership list
-	MyView = make (map[string]Member)
+	MyView = make(map[string]Member)
 	MyIp, err = getMyIp()
 	log.HandleError(log.Error, err)
-	MyView[MyIp] = Member{Version: 0}
+	MyView[MyIp] = Member{Version: 0, Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
 
 	// TODO: add introducer to the membership list after adding the introducer cli arg 
 	log.Logger.Println("Inital membership list:", MyView)
@@ -118,6 +134,12 @@ func Start() {
 		listenForGossip()
 		wg.Done()
 	}()
+	
+	go func() {
+		gossip()
+		wg.Done()
+	}()
 
 	wg.Wait()
 }
+
