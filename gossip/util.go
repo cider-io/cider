@@ -1,15 +1,15 @@
 package gossip
 
 import (
-	"strconv"
-	"time"
 	"cider/log"
 	"encoding/json"
+	"strconv"
+	"time"
 )
 
 // prettyPrintMember: Pretty print a membership list entry
 func prettyPrintMember(ip string, member Member) {
-	summary := "[" + ip + "-" + strconv.Itoa(member.Version) + "]"
+	summary := "[" + ip + "]"
 	summary += " [♥:" + strconv.Itoa(member.Heartbeat) + "]"
 	summary += " [Last updated " + strconv.FormatInt(time.Since(member.LastUpdated).Milliseconds(), 10) + " ago]"
 	if member.Failed {
@@ -19,10 +19,10 @@ func prettyPrintMember(ip string, member Member) {
 }
 
 // prettyPrintNode: Pretty print a node
-func prettyPrintNode (message string, node Node) {
+func prettyPrintNode(message string, node Node) {
 	prefix := "----    "
 	indent := "  "
 	output, err := json.MarshalIndent(node, prefix, indent)
-	log.HandleError(log.Error, err)
+	log.HandleLog(log.Error, err)
 	log.Logger.Println(message, string(output))
 }

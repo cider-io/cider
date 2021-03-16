@@ -10,12 +10,13 @@ var Logger *log.Logger
 // error logging levels
 const Error = "ERROR"
 const Warning = "WARNING"
+const Debug = "DEBUG"
 
 // logging locations
 const ToStdout = true
 const ToCiderLog = false
 
-func HandleError(loggingLevel string, err error) {
+func HandleLog(loggingLevel string, err error) {
 	if err != nil {
 		Logger.SetPrefix(loggingLevel + " ")
 
@@ -40,8 +41,8 @@ func InitLogger(toStdout bool) {
 			log.Fatal(err)
 		}
 	}
-	
+
 	prefix := "INFO " // all non-error handling messages are info
-	flags := log.Lmicroseconds|log.Lshortfile
+	flags := log.Lmicroseconds | log.Lshortfile
 	Logger = log.New(logFile, prefix, flags)
 }
