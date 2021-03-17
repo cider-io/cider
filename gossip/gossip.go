@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -22,6 +23,8 @@ type Member struct { // membership list entry
 type Node struct {
 	IpAddress      string
 	MembershipList map[string]Member // maps member IP address to Member struct
+	TFail          time.Duration
+	TRemove        time.Duration
 }
 
 var Self Node
@@ -34,13 +37,15 @@ func heartbeat() {
 	me.LastUpdated = time.Now()
 	Self.MembershipList[Self.IpAddress] = me
 
-	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))), 1)
 	keys := make([]string, 0, len(Self.MembershipList))
-	for k := range Self.MembershipList {
-		if k != Self.IpAddress {
+	for k, val := range Self.MembershipList {
+		if k != Self.IpAddress && !val.Failed {
 			keys = append(keys, k)
 		}
 	}
+
+	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))),
+		float64(len(keys)))
 
 	if len(keys) > 0 {
 		rand.Seed(time.Now().UnixNano())
@@ -48,13 +53,33 @@ func heartbeat() {
 		for i := 0; i < int(numGossipNodes); i++ {
 			connection, err := net.Dial("udp", keys[i]+":"+strconv.Itoa(config.GossipPort))
 			if err != nil {
-				log.HandleLog(log.Error, err)
-			} else {
-				encoder := gob.NewEncoder(connection)
-				encoder.Encode(Self.MembershipList)
+				log.Error(err.Error())
+				os.Exit(1)
 			}
+			encoder := gob.NewEncoder(connection)
+			encoder.Encode(Self.MembershipList)
 			connection.Close()
 		}
+	}
+}
+
+// pdateMembershipList: Update the membership list based on gossips from neighbors
+func updateMembershipList(neighborsMembershipList map[string]Member) {
+	for ip, member := range neighborsMembershipList {
+		resolvedIps, err := net.LookupIP(ip)
+		if err != nil {
+			log.Error(err.Error())
+			os.Exit(1)
+		}
+		resolvedIp := resolvedIps[0].To4().String()
+		if resolvedIp != Self.IpAddress {
+			localVal, ok := Self.MembershipList[resolvedIp]
+			if (ok && !localVal.Failed && member.Heartbeat > localVal.Heartbeat) || !ok {
+				member.LastUpdated = time.Now()
+				Self.MembershipList[resolvedIp] = member
+			}
+		}
+		prettyPrintMember(resolvedIp, Self.MembershipList[resolvedIp])
 	}
 }
 
@@ -62,13 +87,48 @@ func heartbeat() {
 func listenForGossip() {
 	udpAddress := net.UDPAddr{IP: net.ParseIP(Self.IpAddress), Port: config.GossipPort, Zone: ""}
 	udpConnection, err := net.ListenUDP("udp", &udpAddress)
-	log.HandleLog(log.Error, err)
+
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+
 	for {
 		var neighborsMembershipList map[string]Member
 		decoder := gob.NewDecoder(udpConnection)
 		err = decoder.Decode(&neighborsMembershipList)
-		log.HandleLog(log.Warning, err)
+		if err != nil {
+			log.Warning(err.Error())
+		}
 		updateMembershipList(neighborsMembershipList)
+	}
+}
+
+func failureDetection() {
+	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))), 1)
+
+	Self.TFail = time.Duration(numGossipNodes) * time.Second
+	Self.TRemove = 2 * Self.TFail
+
+	removeList := make([]string, 0, len(Self.MembershipList))
+	for ip, member := range Self.MembershipList {
+		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.TFail {
+			member.Failed = true
+			Self.MembershipList[ip] = member
+			log.Debug("Node marked as failed: " + ip)
+		} else if member.Failed && time.Since(member.LastUpdated) > Self.TRemove {
+			removeList = append(removeList, ip)
+		}
+	}
+
+	for _, ip := range removeList {
+		delete(Self.MembershipList, ip)
+		log.Debug("Node removed: " + ip)
+	}
+
+	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
+		log.Error("This node has possibly been marked as " +
+			"failed by all other nodes in the cluster. Attempt to restart")
 	}
 }
 
@@ -78,28 +138,10 @@ func gossip() {
 	startTime := time.Now()
 	for {
 		if time.Since(startTime) > config.HeartbeatRate {
+			failureDetection()
 			heartbeat()
 			startTime = time.Now()
 		}
-	}
-}
-
-// TODO: updateMembershipList:
-func updateMembershipList(neighborsMembershipList map[string]Member) {
-	for ip, member := range neighborsMembershipList {
-		resolvedIps, err := net.LookupIP(ip)
-		if err != nil {
-			log.HandleLog(log.Error, err)
-		}
-		resolvedIp := resolvedIps[0].To4().String()
-		if resolvedIp != Self.IpAddress {
-			localVal, ok := Self.MembershipList[resolvedIp]
-			if (ok && member.Heartbeat > localVal.Heartbeat) || !ok {
-				member.LastUpdated = time.Now()
-				Self.MembershipList[resolvedIp] = member
-			}
-		}
-		prettyPrintMember(resolvedIp, Self.MembershipList[resolvedIp])
 	}
 }
 
@@ -110,7 +152,10 @@ func Start() {
 
 	// initialize node
 	ipAddress, err := util.GetIpAddress()
-	log.HandleLog(log.Error, err)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 	membershipList := make(map[string]Member)
 	// TODO: add introducer to the membership list after adding the introducer cli arg
 	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
@@ -120,11 +165,12 @@ func Start() {
 	// membershipList["sp21-cs525-g17-01.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
 	// membershipList["sp21-cs525-g17-02.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
 
-	Self = Node{IpAddress: ipAddress, MembershipList: membershipList}
+	// TODO: We would probably want to have larger TFail and TRemove in the begining to allow for init.
+	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, TFail: config.InitialTFail, TRemove: 2 * config.InitialTFail}
 
-	prettyPrintNode("Initial node configuration:", Self)
+	prettyPrintNode("Initial node configuration: ", Self)
 
-	log.Logger.Println("Starting gossip")
+	log.Info("Starting gossip")
 
 	go func() {
 		listenForGossip()
@@ -137,5 +183,5 @@ func Start() {
 	}()
 
 	wg.Wait()
-	log.Logger.Fatalln("Gossip has exited")
+	log.Error("Gossip has exited")
 }
