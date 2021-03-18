@@ -1,29 +1,39 @@
-package util 
+package util
 
 import (
-	"net"
-	"regexp"
 	"cider/log"
 	"errors"
+	"net"
+	"os"
+	"regexp"
 )
 
 // GetIpAddress: Return this device's IP address on the WLAN
 func GetIpAddress() (string, error) {
 	interfaces, err := net.Interfaces()
-	log.HandleError(log.Error, err)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 
 	// FIXME: ethernet usually shows up before wifi
 	// user should be able to configure which interface they want CIDER client to run on
-	lanPattern, err := regexp.Compile("(?i:.*(wifi|wi-fi|eth).*)")
-	log.HandleError(log.Error, err)
+	lanPattern, err := regexp.Compile("(?i:.*(wifi|wi-fi|eth|en|utun).*)")
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 
 	for _, iface := range interfaces {
-		interfaceIsUp := net.FlagUp & iface.Flags == net.FlagUp 
+		interfaceIsUp := net.FlagUp&iface.Flags == net.FlagUp
 		interfaceIsLan := lanPattern.MatchString(iface.Name)
 
 		if interfaceIsUp && interfaceIsLan {
 			unicastAddresses, err := iface.Addrs()
-			log.HandleError(log.Error, err)
+			if err != nil {
+				log.Error(err.Error())
+				os.Exit(1)
+			}
 
 			for _, address := range unicastAddresses {
 				switch value := address.(type) {

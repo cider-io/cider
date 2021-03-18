@@ -1,14 +1,14 @@
 package main
 
 import (
-	"cider/sysinfo"
-	"cider/log"
 	"cider/gossip"
+	"cider/log"
+	"cider/sysinfo"
+	"fmt"
 )
 
 func main() {
-	log.InitLogger(log.ToStdout)
 	sysinfo := sysinfo.SysInfo()
-	log.Logger.Println(sysinfo)
+	log.Info(fmt.Sprint(sysinfo))
 	gossip.Start()
 }
