@@ -1,6 +1,7 @@
 package sysinfo
 
 import (
+	"cider/handle"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -28,23 +29,17 @@ func SysInfo() map[string]string {
 	}
 
 	memOut, err := exec.Command("bash", "-c", cmd).Output()
-	if err != nil {
-		fmt.Printf("%s", err)
-	}
+	handle.Warning(err)
 
 	memory := string(memOut[:])
 	if os == "darwin" {
 		fields := strings.Fields(memory)
 		totalMemory, err := strconv.Atoi(fields[1][:len(fields[1])-1])
-		if err != nil {
-			fmt.Printf("%s", err)
-		}
+		handle.Warning(err)
 		totalMemory = totalMemory * multFactor[fields[1][len(fields[1])-1]]
 
 		freeMemory, err := strconv.Atoi(fields[5][:len(fields[5])-1])
-		if err != nil {
-			fmt.Printf("%s", err)
-		}
+		handle.Warning(err)
 		freeMemory = freeMemory * multFactor[fields[5][len(fields[5])-1]]
 
 		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
@@ -53,13 +48,9 @@ func SysInfo() map[string]string {
 	} else if os == "linux" {
 		fields := strings.Fields(strings.Split(memory, "\n")[1])
 		totalMemory, err := strconv.Atoi(fields[1])
-		if err != nil {
-			fmt.Printf("%s", err)
-		}
+		handle.Warning(err)
 		freeMemory, err := strconv.Atoi(fields[3])
-		if err != nil {
-			fmt.Printf("%s", err)
-		}
+		handle.Warning(err)
 
 		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
 		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)

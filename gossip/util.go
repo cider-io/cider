@@ -2,8 +2,8 @@ package gossip
 
 import (
 	"cider/log"
+	"cider/handle"
 	"encoding/json"
-	"os"
 	"strconv"
 	"time"
 )
@@ -24,9 +24,6 @@ func prettyPrintNode(message string, node Node) {
 	prefix := "----    "
 	indent := "  "
 	output, err := json.MarshalIndent(node, prefix, indent)
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
+	handle.Error(err)
 	log.Info(message + string(output))
 }
