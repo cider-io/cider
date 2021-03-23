@@ -4,14 +4,15 @@ import (
 	"cider/config"
 	"cider/log"
 	"cider/util"
+	"cider/handle"
 	"encoding/gob"
 	"math"
 	"math/rand"
 	"net"
-	"os"
 	"strconv"
 	"sync"
 	"time"
+	"errors"
 )
 
 type Member struct { // membership list entry
@@ -52,10 +53,7 @@ func heartbeat() {
 		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
 		for i := 0; i < int(numGossipNodes); i++ {
 			connection, err := net.Dial("udp", keys[i]+":"+strconv.Itoa(config.GossipPort))
-			if err != nil {
-				log.Error(err.Error())
-				os.Exit(1)
-			}
+			handle.Error(err)
 			encoder := gob.NewEncoder(connection)
 			encoder.Encode(Self.MembershipList)
 			connection.Close()
@@ -63,14 +61,11 @@ func heartbeat() {
 	}
 }
 
-// pdateMembershipList: Update the membership list based on gossips from neighbors
+// updateMembershipList: Update the membership list based on gossips from neighbors
 func updateMembershipList(neighborsMembershipList map[string]Member) {
 	for ip, member := range neighborsMembershipList {
 		resolvedIps, err := net.LookupIP(ip)
-		if err != nil {
-			log.Error(err.Error())
-			os.Exit(1)
-		}
+		handle.Error(err)
 		resolvedIp := resolvedIps[0].To4().String()
 		if resolvedIp != Self.IpAddress {
 			localVal, ok := Self.MembershipList[resolvedIp]
@@ -87,19 +82,13 @@ func updateMembershipList(neighborsMembershipList map[string]Member) {
 func listenForGossip() {
 	udpAddress := net.UDPAddr{IP: net.ParseIP(Self.IpAddress), Port: config.GossipPort, Zone: ""}
 	udpConnection, err := net.ListenUDP("udp", &udpAddress)
-
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
+	handle.Error(err)
 
 	for {
 		var neighborsMembershipList map[string]Member
 		decoder := gob.NewDecoder(udpConnection)
 		err = decoder.Decode(&neighborsMembershipList)
-		if err != nil {
-			log.Warning(err.Error())
-		}
+		handle.Warning(err)
 		updateMembershipList(neighborsMembershipList)
 	}
 }
@@ -127,8 +116,8 @@ func failureDetection() {
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		log.Error("This node has possibly been marked as " +
-			"failed by all other nodes in the cluster. Attempt to restart")
+		handle.Error(errors.New("This node has possibly been marked as " +
+			"failed by all other nodes in the cluster. Attempt to restart"))
 	}
 }
 
@@ -152,10 +141,7 @@ func Start() {
 
 	// initialize node
 	ipAddress, err := util.GetIpAddress()
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
+	handle.Error(err)
 	membershipList := make(map[string]Member)
 	// TODO: add introducer to the membership list after adding the introducer cli arg
 	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
@@ -183,5 +169,5 @@ func Start() {
 	}()
 
 	wg.Wait()
-	log.Error("Gossip has exited")
+	handle.Error(errors.New("Gossip has exited"))
 }

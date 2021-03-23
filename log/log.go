@@ -8,46 +8,38 @@ import (
 
 var logger *log.Logger
 
-func Handle(prefix string, callDepth int, txt string) {
+func output(prefix string, callDepth int, message string) {
 	logger.SetPrefix(prefix)
-	logger.Output(callDepth, txt)
+	logger.Output(callDepth, message)
 }
 
-func Error(txt string) {
-	Handle("ERROR ", 2, txt)
+// Error: Log an error
+func Error(message string) {
+	output("ERROR ", 2, message)
 }
 
-func Fatal(txt string) {
-	Error(txt)
-	os.Exit(1)
+// Warning: Log a warning
+func Warning(message string) {
+	if config.LoggingLevel >= 2 {
+		output("WARNING ", 2, message)
+	}	
 }
 
-func Panic(txt string) {
-	Error(txt)
-	panic(txt)
-}
-
-func Warning(txt string) {
-	if config.LogLevel < 2 {
-		return
+// Info: Log info
+func Info(message string) {
+	if config.LoggingLevel >= 3 {
+		output("INFO ", 2, message)
 	}
-	Handle("WARNING ", 2, txt)
 }
 
-func Info(txt string) {
-	if config.LogLevel < 3 {
-		return
+// Debug: Log a debugging message
+func Debug(message string) {
+	if config.LoggingLevel >= 4 {
+		output("DEBUG ", 2, message)
 	}
-	Handle("INFO ", 2, txt)
 }
 
-func Debug(txt string) {
-	if config.LogLevel < 4 {
-		return
-	}
-	Handle("DEBUG ", 2, txt)
-}
-
+// init: Initialize the logger
 func init() {
 	var logFile *os.File
 	var err error
@@ -62,7 +54,7 @@ func init() {
 		}
 	}
 
-	prefix := "INFO " // all non-error handling messages are info
+	prefix := ""
 	flags := log.Lmicroseconds | log.Lshortfile
 	logger = log.New(logFile, prefix, flags)
 }
