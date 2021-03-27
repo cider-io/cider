@@ -53,7 +53,7 @@ func heartbeat() {
 		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
 		for i := 0; i < int(numGossipNodes); i++ {
 			connection, err := net.Dial("udp", keys[i]+":"+strconv.Itoa(config.GossipPort))
-			handle.Error(err)
+			handle.Fatal(err)
 			encoder := gob.NewEncoder(connection)
 			encoder.Encode(Self.MembershipList)
 			connection.Close()
@@ -65,7 +65,7 @@ func heartbeat() {
 func updateMembershipList(neighborsMembershipList map[string]Member) {
 	for ip, member := range neighborsMembershipList {
 		resolvedIps, err := net.LookupIP(ip)
-		handle.Error(err)
+		handle.Fatal(err)
 		resolvedIp := resolvedIps[0].To4().String()
 		if resolvedIp != Self.IpAddress {
 			localVal, ok := Self.MembershipList[resolvedIp]
@@ -82,7 +82,7 @@ func updateMembershipList(neighborsMembershipList map[string]Member) {
 func listenForGossip() {
 	udpAddress := net.UDPAddr{IP: net.ParseIP(Self.IpAddress), Port: config.GossipPort, Zone: ""}
 	udpConnection, err := net.ListenUDP("udp", &udpAddress)
-	handle.Error(err)
+	handle.Fatal(err)
 
 	for {
 		var neighborsMembershipList map[string]Member
@@ -104,7 +104,7 @@ func failureDetection() {
 		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.TFail {
 			member.Failed = true
 			Self.MembershipList[ip] = member
-			log.Debug("Node marked as failed: " + ip)
+			log.Debug("Node marked as failed:", ip)
 		} else if member.Failed && time.Since(member.LastUpdated) > Self.TRemove {
 			removeList = append(removeList, ip)
 		}
@@ -112,11 +112,11 @@ func failureDetection() {
 
 	for _, ip := range removeList {
 		delete(Self.MembershipList, ip)
-		log.Debug("Node removed: " + ip)
+		log.Debug("Node removed:", ip)
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		handle.Error(errors.New("This node has possibly been marked as " +
+		handle.Fatal(errors.New("This node has possibly been marked as " +
 			"failed by all other nodes in the cluster. Attempt to restart"))
 	}
 }
@@ -141,9 +141,10 @@ func Start() {
 
 	// initialize node
 	ipAddress, err := util.GetIpAddress()
-	handle.Error(err)
+	handle.Fatal(err)
 	membershipList := make(map[string]Member)
 	// TODO: add introducer to the membership list after adding the introducer cli arg
+
 	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
 
 	// For Testing purposes only. Remove when we have a robust way of introducing nodes.
@@ -169,5 +170,5 @@ func Start() {
 	}()
 
 	wg.Wait()
-	handle.Error(errors.New("Gossip has exited"))
+	handle.Fatal(errors.New("Gossip has exited"))
 }

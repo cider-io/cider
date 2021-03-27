@@ -23,7 +23,7 @@ func prettyPrintMember(ip string, member Member) {
 func prettyPrintNode(message string, node Node) {
 	prefix := "----    "
 	indent := "  "
-	output, err := json.MarshalIndent(node, prefix, indent)
-	handle.Error(err)
-	log.Info(message + string(output))
+	prettyPrintedJson, err := json.MarshalIndent(node, prefix, indent)
+	handle.Fatal(err)
+	log.Info(message + string(prettyPrintedJson))
 }

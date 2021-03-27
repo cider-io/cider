@@ -4,6 +4,7 @@ import (
 	"cider/config"
 	"log"
 	"os"
+	"fmt"
 )
 
 var logger *log.Logger
@@ -14,28 +15,28 @@ func output(prefix string, callDepth int, message string) {
 }
 
 // Error: Log an error
-func Error(message string) {
-	output("ERROR ", 2, message)
+func Error(a... interface{}) {
+	output("ERROR ", 2, fmt.Sprint(a))
 }
 
 // Warning: Log a warning
-func Warning(message string) {
+func Warning(a... interface{}) {
 	if config.LoggingLevel >= 2 {
-		output("WARNING ", 2, message)
+		output("WARNING ", 2, fmt.Sprint(a))
 	}	
 }
 
 // Info: Log info
-func Info(message string) {
+func Info(a... interface{}) {
 	if config.LoggingLevel >= 3 {
-		output("INFO ", 2, message)
+		output("INFO ", 2, fmt.Sprint(a))
 	}
 }
 
 // Debug: Log a debugging message
-func Debug(message string) {
+func Debug(a... interface{}) {
 	if config.LoggingLevel >= 4 {
-		output("DEBUG ", 2, message)
+		output("DEBUG ", 2, fmt.Sprint(a))
 	}
 }
 
