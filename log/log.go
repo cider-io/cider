@@ -16,27 +16,27 @@ func output(prefix string, callDepth int, message string) {
 
 // Error: Log an error
 func Error(a... interface{}) {
-	output("ERROR ", 2, fmt.Sprint(a))
+	output("ERROR ", 2, fmt.Sprintln(a...))
 }
 
 // Warning: Log a warning
 func Warning(a... interface{}) {
 	if config.LoggingLevel >= 2 {
-		output("WARNING ", 2, fmt.Sprint(a))
+		output("WARNING ", 2, fmt.Sprintln(a...))
 	}	
 }
 
 // Info: Log info
 func Info(a... interface{}) {
 	if config.LoggingLevel >= 3 {
-		output("INFO ", 2, fmt.Sprint(a))
+		output("INFO ", 2, fmt.Sprintln(a...))
 	}
 }
 
 // Debug: Log a debugging message
 func Debug(a... interface{}) {
 	if config.LoggingLevel >= 4 {
-		output("DEBUG ", 2, fmt.Sprint(a))
+		output("DEBUG ", 2, fmt.Sprintln(a...))
 	}
 }
 
