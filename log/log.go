@@ -9,34 +9,36 @@ import (
 
 var logger *log.Logger
 
-func output(prefix string, callDepth int, message string) {
+func Output(prefix string, callDepth int, message string) {
 	logger.SetPrefix(prefix)
 	logger.Output(callDepth, message)
 }
 
 // Error: Log an error
 func Error(a... interface{}) {
-	output("ERROR ", 2, fmt.Sprintln(a...))
+	if config.LoggingLevel >= 1 {
+		Output("ERROR ", 3, fmt.Sprintln(a...))
+	}
 }
 
 // Warning: Log a warning
 func Warning(a... interface{}) {
 	if config.LoggingLevel >= 2 {
-		output("WARNING ", 2, fmt.Sprintln(a...))
+		Output("WARNING ", 3, fmt.Sprintln(a...))
 	}	
 }
 
 // Info: Log info
 func Info(a... interface{}) {
 	if config.LoggingLevel >= 3 {
-		output("INFO ", 2, fmt.Sprintln(a...))
+		Output("INFO ", 3, fmt.Sprintln(a...))
 	}
 }
 
 // Debug: Log a debugging message
 func Debug(a... interface{}) {
 	if config.LoggingLevel >= 4 {
-		output("DEBUG ", 2, fmt.Sprintln(a...))
+		Output("DEBUG ", 3, fmt.Sprintln(a...))
 	}
 }
 

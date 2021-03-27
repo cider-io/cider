@@ -5,17 +5,17 @@ import (
 	"os"
 )
 
-// Fatal: One-line error handler
+// Fatal: One-line error checker
 func Fatal(err error) {
 	if err != nil {
-		log.Error(err)
+		log.Output("FATAL", 3, err.Error())
 		os.Exit(1)
 	}
 } 
 
-// Warning: One-line warning handler
+// Warning: One-line warning checker
 func Warning(err error) {
 	if err != nil {
-		log.Warning(err)
+		log.Output("WARNING", 3, err.Error())
 	}
 }
