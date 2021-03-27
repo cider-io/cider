@@ -25,5 +25,5 @@ func prettyPrintNode(message string, node Node) {
 	indent := "  "
 	prettyPrintedJson, err := json.MarshalIndent(node, prefix, indent)
 	handle.Fatal(err)
-	log.Info(message + string(prettyPrintedJson))
+	log.Info(message, string(prettyPrintedJson))
 }

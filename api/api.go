@@ -50,6 +50,6 @@ func Start() {
 		}
 	})
 
-	log.Info("Serving CIDER API at port", strconv.Itoa(config.ApiPort))
+	log.Info("Serving CIDER API at port", config.ApiPort)
 	handle.Fatal(http.ListenAndServe(":" + strconv.Itoa(config.ApiPort), mux))
 }
