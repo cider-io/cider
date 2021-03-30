@@ -4,11 +4,26 @@ import (
 	"cider/gossip"
 	"cider/log"
 	"cider/sysinfo"
-	"fmt"
+	"cider/api"
+	"sync"
 )
 
 func main() {
 	sysinfo := sysinfo.SysInfo()
-	log.Info(fmt.Sprint(sysinfo))
-	gossip.Start()
+	log.Info(sysinfo)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		gossip.Start()
+		wg.Done()
+	}()
+
+	go func() {
+		api.Start()
+		wg.Done()
+	}()
+
+	wg.Wait()
 }
