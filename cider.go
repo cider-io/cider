@@ -1,10 +1,10 @@
 package main
 
 import (
-	"cider/gossip"
+	"cider/api"
+	// "cider/gossip"
 	"cider/log"
 	"cider/sysinfo"
-	"cider/api"
 	"sync"
 )
 
@@ -15,10 +15,11 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go func() {
-		gossip.Start()
-		wg.Done()
-	}()
+	// Commented this out for testing HTTP API
+	// go func() {
+	// 	gossip.Start()
+	// 	wg.Done()
+	// }()
 
 	go func() {
 		api.Start()

@@ -2,18 +2,18 @@ package gossip
 
 import (
 	"cider/config"
+	"cider/handle"
 	"cider/log"
 	"cider/util"
-	"cider/handle"
 	"encoding/gob"
+	"errors"
+	"flag"
 	"math"
 	"math/rand"
 	"net"
 	"strconv"
 	"sync"
 	"time"
-	"errors"
-        "flag"
 )
 
 type Member struct { // membership list entry
@@ -38,8 +38,8 @@ func heartbeat() {
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
 	Self.MembershipList[Self.IpAddress] = me
-        
-        //Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
+
+	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
 	keys := make([]string, 0, len(Self.MembershipList))
 	for k, val := range Self.MembershipList {
 		if k != Self.IpAddress && !val.Failed {
@@ -159,16 +159,16 @@ func Start() {
 
 	prettyPrintNode("Initial node configuration: ", Self)
 
-        //introducer: it can be further improved through config file
-        introducer := flag.String("introducer", "config.txt","The path to config file")
-        flag.Parse()
+	//introducer: it can be further improved through config file
+	introducer := flag.String("introducer", "config.txt", "The path to config file")
+	flag.Parse()
 
-        if ( *introducer != ipAddress ) {
-           log.Info("Add introducer to the membershipList list: " + *introducer )
-           membershipList1 := make(map[string]Member)
-                 membershipList1[*introducer] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-           updateMembershipList(membershipList1)
-        }
+	if *introducer != ipAddress {
+		log.Info("Add introducer to the membershipList list: " + *introducer)
+		membershipList1 := make(map[string]Member)
+		membershipList1[*introducer] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
+		updateMembershipList(membershipList1)
+	}
 	log.Info("Starting gossip")
 
 	go func() {
