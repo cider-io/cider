@@ -14,8 +14,8 @@ import (
 )
 
 // writeMessage: Write headers + formatted message to the response
-func writeMessage(response *http.ResponseWriter, status int, format string, a ...interface{}) {
-	message := []byte(fmt.Sprintf(format, a...))
+func writeMessage(response *http.ResponseWriter, status int, format string, args...interface{}) {
+	message := []byte(fmt.Sprintf(format, args...))
 
 	// changing the Header after calling WriteHeader(statusCode) has no effect,
 	// so these lines must remain in this order

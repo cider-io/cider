@@ -85,13 +85,11 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 	taskId := chi.URLParam(request, "id")
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
+	} else if tasks[taskId].Status == Stopped {
+		writeMessage(&response, http.StatusConflict, "This task has already stopped.")
 	} else {
-		if tasks[taskId].Status == Stopped {
-			writeMessage(&response, http.StatusConflict, "This task has already stopped.")
-		} else {
-			tasks[taskId].Abort <- true
-			writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
-		}
+		tasks[taskId].Abort <- true	
+		writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
 	}
 }
 
@@ -101,13 +99,11 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 	taskId := chi.URLParam(request, "id")
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
+	} else if tasks[taskId].Status != Stopped {
+		writeMessage(&response, http.StatusConflict, "Cannot delete a running task; please abort it first.")
 	} else {
-		if tasks[taskId].Status != Stopped {
-			writeMessage(&response, http.StatusConflict, "Cannot delete a running task; please abort it first.")
-		} else {
-			delete(tasks, taskId)
-			writeMessage(&response, http.StatusOK, "Deleted task %s", taskId)
-		}
+		delete(tasks, taskId)
+		writeMessage(&response, http.StatusOK, "Deleted task %s", taskId)
 	}
 }
 
@@ -117,12 +113,10 @@ func getTaskResult(response http.ResponseWriter, request *http.Request) {
 	taskId := chi.URLParam(request, "id")
 	log.Debug(taskId)
 	if _, ok := tasks[taskId]; !ok {
-		response.WriteHeader(http.StatusNotFound)
+		response.WriteHeader(http.StatusNotFound)		
+	} else if tasks[taskId].Status != Stopped {
+		writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
 	} else {
-		if tasks[taskId].Status != Stopped {
-			writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
-		} else {
-			writeStruct(&response, TaskResult{Result: tasks[taskId].Result, Error: tasks[taskId].Error})
-		}
+		writeStruct(&response, TaskResult{Result: tasks[taskId].Result, Error: tasks[taskId].Error})
 	}
 }
