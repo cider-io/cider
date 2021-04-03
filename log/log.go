@@ -2,9 +2,9 @@ package log
 
 import (
 	"cider/config"
+	"fmt"
 	"log"
 	"os"
-	"fmt"
 )
 
 var logger *log.Logger
@@ -15,28 +15,28 @@ func Output(prefix string, callDepth int, message string) {
 }
 
 // Error: Log an error
-func Error(a... interface{}) {
+func Error(a ...interface{}) {
 	if config.LoggingLevel >= 1 {
 		Output("ERROR ", 3, fmt.Sprintln(a...))
 	}
 }
 
 // Warning: Log a warning
-func Warning(a... interface{}) {
+func Warning(a ...interface{}) {
 	if config.LoggingLevel >= 2 {
 		Output("WARNING ", 3, fmt.Sprintln(a...))
-	}	
+	}
 }
 
 // Info: Log info
-func Info(a... interface{}) {
+func Info(a ...interface{}) {
 	if config.LoggingLevel >= 3 {
 		Output("INFO ", 3, fmt.Sprintln(a...))
 	}
 }
 
 // Debug: Log a debugging message
-func Debug(a... interface{}) {
+func Debug(a ...interface{}) {
 	if config.LoggingLevel >= 4 {
 		Output("DEBUG ", 3, fmt.Sprintln(a...))
 	}

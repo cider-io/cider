@@ -6,7 +6,7 @@ import (
 
 // package log
 const LoggingLevel = 4
-const LogStdout = true
+const LogStdout = false
 const LogFile = "cider.log"
 
 // package gossip
@@ -17,4 +17,3 @@ const InitialTFail = 1 * time.Minute
 // package api
 const ApiPort = 6143
 const NonceLength = 32
-

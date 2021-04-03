@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -38,7 +39,8 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	tasks[taskId] = Task{Id: taskId, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0, Abort: make(chan bool)}
+
+	tasks[taskId] = Task{Id: taskId, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0, Abort: make(chan bool), Metrics: TaskMetrics{Id: taskId, Function: taskRequest.Function, StartTime: time.Now().Format("15:04:05.000000")}}
 
 	go func(taskId string) { // async launch the function
 		task := tasks[taskId]
@@ -48,12 +50,16 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 		taskResult, taskErr := functions.Map[task.Function](task.Data, task.Abort)
 		task.Status = Stopped
 		task.Result = taskResult
+
+		task.Metrics.EndTime = time.Now().Format("15:04:05.000000")
+		MetricsLog(task.Metrics)
+
 		if taskErr != nil {
 			task.Error = taskErr.Error()
 		} else {
 			task.Error = ""
 		}
-		
+
 		tasks[taskId] = task
 	}(taskId)
 
@@ -83,7 +89,7 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 		if tasks[taskId].Status == Stopped {
 			writeMessage(&response, http.StatusConflict, "This task has already stopped.")
 		} else {
-			tasks[taskId].Abort <- true	
+			tasks[taskId].Abort <- true
 			writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
 		}
 	}
@@ -111,7 +117,7 @@ func getTaskResult(response http.ResponseWriter, request *http.Request) {
 	taskId := chi.URLParam(request, "id")
 	log.Debug(taskId)
 	if _, ok := tasks[taskId]; !ok {
-		response.WriteHeader(http.StatusNotFound)		
+		response.WriteHeader(http.StatusNotFound)
 	} else {
 		if tasks[taskId].Status != Stopped {
 			writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
