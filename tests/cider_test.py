@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-import http.client
+import requests
+from requests.exceptions import HTTPError
 import random
 import json
 import time
@@ -20,7 +21,7 @@ def single_request(host):
 
     ran_floats = [random.uniform(-10, 80) for _ in range(size)]
 
-    conn = http.client.HTTPConnection(host, 6143, timeout=3000)
+    base_url = f'http://{host}:6143'
 
     id = hash(str(ran_floats))
     data = {}
@@ -28,38 +29,52 @@ def single_request(host):
     data["data"] = ran_floats
     data["function"] = "sum"
 
-    data_to_send = json.dumps(data)
-
     logger.info(f'Sending data to {host} for id {id}')
-    conn.request("PUT", "/tasks", data_to_send)
-    response = conn.getresponse()
-    assert response.status == 200, 'Invalid status'
-    _ = response.read()
+    response = requests.put(base_url+'/tasks', json=data)
 
-    logger.info(f'Getting task status from {host} for id {id}')
-    conn.request("GET", "/tasks/{}".format(id))
-    response = conn.getresponse()
-    result = json.loads(response.read())
-    status = result["results"]["status"]
-    assert status == "Succeeded", 'mismatch: {}, itr {}'.format(status, iter)
+    try:
+        response.raise_for_status()
+    except HTTPError as e:
+        logger.error(f'HTTP Error {e}')
+
+    response_dict = response.json()["results"]
+    assert response_dict['id'] == f'{id}', 'Invalid ID'
+    assert response_dict['function'] == 'sum', 'Invalid function'
+
+    logger.info(
+        f'Getting task status from {host} for id {id}, wait until `Succeeded` as status')
+
+    loops = 1
+    while True:
+        response = requests.get(base_url + f'/tasks/{id}/status')
+        try:
+            response.raise_for_status()
+        except HTTPError as e:
+            logger.error(f'HTTP Error {e}')
+        status = response.json()["results"]
+        if status == "Succeeded":
+            logger.info(
+                f'{host} finished task with id {id} in {loops} loop(s).')
+            break
+        elif status == "Failed":
+            logger.error(
+                f'Failed task with id {id} at {host}.')
+            break
+        loops += 1
 
     logger.info(f'Getting result from {host} for id {id}')
-    conn.request("GET", "/tasks/{}/result".format(id))
-    response = conn.getresponse()
-
-    assert response.status == 200, 'Invalid status'
-    result = json.loads(response.read())
-
-    print(result)
+    response = requests.get(base_url + f'/tasks/{id}/result')
+    try:
+        response.raise_for_status()
+    except HTTPError as e:
+        logger.error(f'HTTP Error {e}')
+    result = response.json()["results"]
+    logger.info(f'Result: {result}')
 
     expected = sum(ran_floats)
     logger.info(f'Expected: {expected}')
 
-    assert result["results"] == expected, 'Incorrect result'
-
-    conn.close()
-
-    logger.info('Result: {}'.format(result["results"]))
+    assert result == expected, 'Incorrect result'
 
 
 if __name__ == '__main__':
