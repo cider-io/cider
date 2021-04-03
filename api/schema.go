@@ -33,12 +33,12 @@ type TaskMetrics struct {
 type Task struct {
 	Id       string      `json:"id"`
 	Status   TaskStatus  `json:"status"`
-	Function string      `json:"-"` // ignore all fields other than Id/Status in the JSON representation
-	Data     []float64   `json:"-"`
+	Function string      `json:"function"` 
+	Data     []float64   `json:"-"` // ignore all fields other than Id/Status in the JSON representation
 	Result   float64     `json:"-"`
 	Error    string      `json:"-"`
 	Abort    chan bool   `json:"-"`
-	Metrics  TaskMetrics `Json:"_"`
+	Metrics  TaskMetrics `Json:"-"`
 }
 
 type TaskRequest struct {
