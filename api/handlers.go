@@ -2,10 +2,8 @@ package api
 
 import (
 	"cider/functions"
-	"cider/handle"
 	"cider/log"
 	"encoding/json"
-	"errors"
 	"path"
 	"io/ioutil"
 	"net/http"
@@ -20,32 +18,32 @@ func getTasks(response http.ResponseWriter, request *http.Request) {
 func deployTask(response http.ResponseWriter, request *http.Request) {
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		handle.Warning(err)
+		log.Warning(err)
 		response.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	var taskRequest TaskRequest
 	err = json.Unmarshal(body, &taskRequest)
-	log.Debug(taskRequest)
 	if err != nil {
-		handle.Warning(err)
+		log.Warning(err)
 		response.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	task := Task{Id: taskRequest.Id, Status: Waiting, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0}
+	log.Debug(request.Method, request.URL.Path, taskRequest)
+	task := Task{Id: taskRequest.Id, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0}
 
-	var msg string
 	if _, present := tasks[task.Id]; !present {
+		writeMessage(&response, http.StatusOK, "Deploying task %s.", task.Id)
 		tasks[task.Id] = task
-		writeMessage(&response, http.StatusOK, "Task with ID %s deployed.", task.Id)
-		task.Status = Computing
+
+		task.Status = Running
 		tasks[task.Id] = task
+
 		task.Result = functions.Map[task.Function](task.Data)
 		task.Status = Succeeded
 		tasks[task.Id] = task
 	} else {
-		writeMessage(&response, http.StatusConflict, "Task with ID %s already deployed.", task.Id)
-		handle.Warning(errors.New(msg))
+		writeMessage(&response, http.StatusConflict, "Task %s  is already deployed.", task.Id)
 	}
 }
 
@@ -67,11 +65,11 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
 	} else {
-		if tasks[taskId].Status != Computing {
+		if tasks[taskId].Status != Running {
 			delete(tasks, taskId)
-			writeMessage(&response, http.StatusOK, "Removed task with id: %v", taskId)
-		} else {
-			writeMessage(&response, http.StatusConflict, "Cannot remove a task in Computing state.")
+			writeMessage(&response, http.StatusOK, "Removed task %s", taskId)
+		} else { // TODO use a channel to abort goroutines running tasks
+			writeMessage(&response, http.StatusConflict, "Cannot remove running task!")
 		}
 	}
 }
