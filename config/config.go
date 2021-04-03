@@ -16,4 +16,5 @@ const InitialTFail = 1 * time.Minute
 
 // package api
 const ApiPort = 6143
+const NonceLength = 32
 

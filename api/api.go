@@ -17,11 +17,13 @@ func Start() {
 	router := chi.NewRouter()
 
 	router.Route("/tasks", func(router chi.Router) {
-		router.Get("/", getTasks)
+		router.Get("/", getTasks) // TODO filtering, authorized endpoint
 		router.Put("/", deployTask)
 		router.Route("/{id}", func (router chi.Router) {
 			router.Get("/", getTask)
+			router.Put("/", abortTask)
 			router.Delete("/", deleteTask)
+			router.Get("/result", getTaskResult)
 		})
 	})
 

@@ -3,9 +3,14 @@ package api
 
 import (
 	"cider/handle"
+	"cider/config"
+	"cider/util"
 	"net/http"
 	"encoding/json"
 	"fmt"
+	"time"
+	"crypto/sha256"
+	"math/rand"
 )
 
 // writeMessage: Write headers + formatted message to the response
@@ -33,4 +38,24 @@ func writeStruct(response *http.ResponseWriter, body interface{}) {
 
 	// HTTP response body is terminated with CRLF
 	(*response).Write(append(jsonBody, '\r', '\n'))
+}
+
+func generateUUID() (string, error) {
+	input, err := time.Now().MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+	
+	rand.Seed(time.Now().UnixNano()) 
+	nonce := make([]byte, config.NonceLength)
+	rand.Read(nonce)
+	input = append(input, nonce...)
+	
+	nodeIpAddress, err := util.GetIpAddress()
+	if err != nil {
+		return "", err
+	}
+	input = append(input, ([]byte(nodeIpAddress))...)
+
+	return fmt.Sprintf("%x", sha256.Sum256(input)), nil 
 }

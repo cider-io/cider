@@ -4,22 +4,15 @@ import (
 	"bytes"
 )
 
-type TaskRequest struct {
-	Id string `json:"id"`
-	Function string `json:"function"`
-	Data []float64 `json:"data"`
-}
-
 type TaskStatus int
 const (
 	Deploying TaskStatus = iota
 	Running
-	Succeeded
-	Failed
+	Stopped
 )
 
 func (status TaskStatus) String() string {
-	return [...]string{"Deploying", "Running", "Succeeded", "Failed"}[status]
+	return [...]string{"Deploying", "Running", "Stopped"}[status]
 }
 
 func (status TaskStatus) MarshalJSON() ([]byte, error) {
@@ -32,7 +25,19 @@ func (status TaskStatus) MarshalJSON() ([]byte, error) {
 type Task struct {
 	Id string `json:"id"`
 	Status TaskStatus `json:"status"`
+	Function string `json:"-"` // ignore all fields other than Id/Status in the JSON representation
+	Data []float64 `json:"-"`
+	Result float64 `json:"-"`
+	Error string `json:"-"`
+	Abort chan bool `json:"-"`
+}
+
+type TaskRequest struct {
 	Function string `json:"function"`
 	Data []float64 `json:"data"`
+}
+
+type TaskResult struct {
 	Result float64 `json:"result"`
+	Error string `json:"error"`
 }

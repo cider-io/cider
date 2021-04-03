@@ -4,9 +4,10 @@ import (
 	"cider/functions"
 	"cider/log"
 	"encoding/json"
-	"path"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // getTasks: GET /tasks handler
@@ -30,27 +31,40 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	log.Debug(request.Method, request.URL.Path, taskRequest)
-	task := Task{Id: taskRequest.Id, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0}
 
-	if _, present := tasks[task.Id]; !present {
-		writeMessage(&response, http.StatusOK, "Deploying task %s.", task.Id)
-		tasks[task.Id] = task
-
-		task.Status = Running
-		tasks[task.Id] = task
-
-		task.Result = functions.Map[task.Function](task.Data)
-		task.Status = Succeeded
-		tasks[task.Id] = task
-	} else {
-		writeMessage(&response, http.StatusConflict, "Task %s  is already deployed.", task.Id)
+	// generate a globally unique id for a task if it doesn't exist
+	taskId, err := generateUUID()
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	tasks[taskId] = Task{Id: taskId, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0, Abort: make(chan bool)}
+
+	go func(taskId string) { // async launch the function
+		task := tasks[taskId]
+		task.Status = Running
+		tasks[taskId] = task
+
+		taskResult, taskErr := functions.Map[task.Function](task.Data, task.Abort)
+		task.Status = Stopped
+		task.Result = taskResult
+		if taskErr != nil {
+			task.Error = taskErr.Error()
+		} else {
+			task.Error = ""
+		}
+		
+		tasks[taskId] = task
+	}(taskId)
+
+	// FIXME: this needs to be sent confidentially (via HTTPS)
+	writeStruct(&response, tasks[taskId])
 }
 
 // getTask: GET /tasks/{id} handler
 func getTask(response http.ResponseWriter, request *http.Request) {
 	log.Debug(request.Method, request.URL.Path)
-	taskId := path.Base(request.URL.Path)
+	taskId := chi.URLParam(request, "id")
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
 	} else {
@@ -58,18 +72,44 @@ func getTask(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// deleteTask: DELETE /tasks/{id} handler
-func deleteTask(response http.ResponseWriter, request *http.Request) {
+// abortTask: PUT /tasks/{id} handler
+// TODO abortTask -> updateTask: add URL parameter for action=abort/pause/resume etc.
+func abortTask(response http.ResponseWriter, request *http.Request) {
 	log.Debug(request.Method, request.URL.Path)
-	taskId := path.Base(request.URL.Path)
+	taskId := chi.URLParam(request, "id")
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
 	} else {
-		if tasks[taskId].Status != Running {
-			delete(tasks, taskId)
-			writeMessage(&response, http.StatusOK, "Removed task %s", taskId)
-		} else { // TODO use a channel to abort goroutines running tasks
-			writeMessage(&response, http.StatusConflict, "Cannot remove running task!")
+		if tasks[taskId].Status != Stopped {
+			tasks[taskId].Abort <- true	
+		} 
+		writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
+	}
+}
+
+// deleteTask: DELETE /tasks/{id} handler
+func deleteTask(response http.ResponseWriter, request *http.Request) {
+	log.Debug(request.Method, request.URL.Path)
+	taskId := chi.URLParam(request, "id")
+	if _, ok := tasks[taskId]; !ok {
+		response.WriteHeader(http.StatusNotFound)
+	} else {
+		if tasks[taskId].Status != Stopped {
+			writeMessage(&response, http.StatusConflict, "Cannot delete a running task.")
+		} 
+		writeMessage(&response, http.StatusOK, "Deleted task %s", taskId)
+	}
+}
+
+// getTaskResult: GET /tasks/{id}/result handler
+func getTaskResult(response http.ResponseWriter, request *http.Request) {
+	log.Debug(request.Method, request.URL.Path)
+	taskId := chi.URLParam(request, "id")
+	if _, ok := tasks[taskId]; !ok {
+		if tasks[taskId].Status != Stopped {
+			writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
+		} else {
+			writeStruct(&response, TaskResult{Result: tasks[taskId].Result, Error: tasks[taskId].Error})
 		}
 	}
 }
