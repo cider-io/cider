@@ -80,10 +80,12 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 	if _, ok := tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
 	} else {
-		if tasks[taskId].Status != Stopped {
+		if tasks[taskId].Status == Stopped {
+			writeMessage(&response, http.StatusConflict, "This task has already stopped.")
+		} else {
 			tasks[taskId].Abort <- true	
-		} 
-		writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
+			writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
+		}
 	}
 }
 
@@ -95,9 +97,11 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusNotFound)
 	} else {
 		if tasks[taskId].Status != Stopped {
-			writeMessage(&response, http.StatusConflict, "Cannot delete a running task.")
-		} 
-		writeMessage(&response, http.StatusOK, "Deleted task %s", taskId)
+			writeMessage(&response, http.StatusConflict, "Cannot delete a running task; please abort it first.")
+		} else {
+			delete(tasks, taskId)
+			writeMessage(&response, http.StatusOK, "Deleted task %s", taskId)
+		}
 	}
 }
 
@@ -105,7 +109,10 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 func getTaskResult(response http.ResponseWriter, request *http.Request) {
 	log.Debug(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
+	log.Debug(taskId)
 	if _, ok := tasks[taskId]; !ok {
+		response.WriteHeader(http.StatusNotFound)		
+	} else {
 		if tasks[taskId].Status != Stopped {
 			writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
 		} else {
