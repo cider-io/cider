@@ -5,7 +5,7 @@ import (
 )
 
 // package log
-const LoggingLevel = 4
+const LoggingLevel = 3
 const LogStdout = false
 const LogFile = "cider.log"
 

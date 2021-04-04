@@ -14,7 +14,7 @@ import (
 )
 
 // writeMessage: Write headers + formatted message to the response
-func writeMessage(response *http.ResponseWriter, status int, format string, args...interface{}) {
+func writeMessage(response *http.ResponseWriter, status int, format string, args ...interface{}) {
 	message := []byte(fmt.Sprintf(format, args...))
 
 	// changing the Header after calling WriteHeader(statusCode) has no effect,
@@ -59,7 +59,9 @@ func generateUUID() (string, error) {
 
 	return fmt.Sprintf("%x", sha256.Sum256(input)), nil
 }
+
 func MetricsLog(metricsIn TaskMetrics) {
+	// Log metrics
 
 	metrics, _ := json.Marshal(metricsIn)
 	log.Output("METRIC ", 3, string(metrics))

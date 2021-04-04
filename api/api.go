@@ -19,7 +19,7 @@ func Start() {
 	router.Route("/tasks", func(router chi.Router) {
 		router.Get("/", getTasks) // TODO filtering, authorized endpoint
 		router.Put("/", deployTask)
-		router.Route("/{id}", func (router chi.Router) {
+		router.Route("/{id}", func(router chi.Router) {
 			router.Get("/", getTask)
 			router.Put("/", abortTask)
 			router.Delete("/", deleteTask)
@@ -27,6 +27,6 @@ func Start() {
 		})
 	})
 
-	log.Info("Serving CIDER API at localhost:" + strconv.Itoa(config.ApiPort))
-	handle.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(config.ApiPort), router))
+	log.Info("Serving CIDER API at port " + strconv.Itoa(config.ApiPort))
+	handle.Fatal(http.ListenAndServe(":"+strconv.Itoa(config.ApiPort), router))
 }
