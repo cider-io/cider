@@ -3,6 +3,8 @@
 echo "Building cider for linux"
 (cd ..; go clean; GOOS=linux GOARCH=amd64 go build)
 
+# Kill cider already running
+./stop_test.sh
 
 for i in {01..10}; do
     host=sp21-cs525-g17-$(printf "%02d" $i).cs.illinois.edu
@@ -10,9 +12,6 @@ for i in {01..10}; do
     ssh $host 'rm *.log'
     ssh $host 'rm cider_test.py'
     scp cider_test.py $host:.
-
-    echo "Kill cider if already running on $host"
-    ssh $host 'kill $(pgrep cider)'
 
     echo "Transfer cider to $host"
     ssh $host 'rm cider'
@@ -26,14 +25,20 @@ for i in {01..10}; do
     echo ""
 done
 
-rnum=$((( RANDOM % 10 )  + 1 ))
-random_host=sp21-cs525-g17-$(printf "%02d" $rnum).cs.illinois.edu
+# test_map = {
+#     1: test_pick_same_one_random,
+#     2: test_pick_same_three_random,
+#     3: test_pick_same_five_random,
+#     4: test_pick_single_random,
+#     5: test_pick_one_random_per_iteration,
+# }
+echo "Using test option $1"
 
-echo $random_host
+rnum1=$((( RANDOM % 100 )  + 1 ))
 for i in {01..10}; do
+    echo "Starting test on VM $(printf "%02d" $i)"
+    # Generate additional random seed for use in test
+    rnum2=$((( RANDOM % 100 )  + 1 ))
     host=sp21-cs525-g17-$(printf "%02d" $i).cs.illinois.edu
-    if [ $host != $random_host ]
-    then
-        ssh $host "./cider_test.py $random_host >/dev/null 2>&1 &"
-    fi
+    ssh $host "./cider_test.py $1 $rnum1 $rnum2 >error.log 2>&1 &"
 done
