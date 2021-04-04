@@ -31,6 +31,7 @@ done
 #     3: test_pick_same_five_random,
 #     4: test_pick_single_random,
 #     5: test_pick_one_random_per_iteration,
+#     6: test_pick_one_random_per_iteration_with_waits,
 # }
 echo "Using test option $1"
 
