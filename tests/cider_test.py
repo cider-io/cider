@@ -6,6 +6,7 @@ import json
 import time
 import sys
 import logging
+import math
 
 logging.basicConfig(filename="test.log",
                     format='%(asctime)s %(message)s',
@@ -15,8 +16,8 @@ logger = logging.getLogger()
 
 logger.setLevel(logging.INFO)
 
-DATA_SIZE = 1000000
-ITERATIONS = 100
+DATA_SIZE = 500000
+ITERATIONS = 1000
 
 hosts = [
     'sp21-cs525-g17-{:02}.cs.illinois.edu'.format(i + 1) for i in range(10)]
@@ -87,7 +88,6 @@ def test_pick_same_one_random(rseeds):
     # Use the unique seed for data randomness
     # across VMs
     random.seed(rseeds[1])
-    time.sleep(random.random()*10)
 
     for i in range(ITERATIONS):
         logger.info(f'Iteration {i+1}')
@@ -104,7 +104,6 @@ def test_pick_same_three_random(rseeds):
     # Use the unique seed for data randomness
     # across VMs
     random.seed(rseeds[1])
-    time.sleep(random.random()*10)
 
     for i in range(ITERATIONS):
         host = random.sample(target_hosts, 1)[0]
@@ -122,7 +121,6 @@ def test_pick_same_five_random(rseeds):
     # Use the unique seed for data randomness
     # across VMs
     random.seed(rseeds[1])
-    time.sleep(random.random()*10)
 
     for i in range(ITERATIONS):
         host = random.sample(target_hosts, 1)[0]
@@ -136,7 +134,6 @@ def test_pick_single_random(rseeds):
     # to send the data for compute
     # as we use the unique seed only
     random.seed(rseeds[1])
-    time.sleep(random.random()*10)
     host = random.sample(hosts, 1)[0]
 
     for i in range(ITERATIONS):
@@ -150,9 +147,23 @@ def test_pick_one_random_per_iteration(rseeds):
     # each iteration to send the data for
     # compute as we use the unique seed only
     random.seed(rseeds[1])
-    time.sleep(random.random()*10)
 
     for i in range(ITERATIONS):
+        host = random.sample(hosts, 1)[0]
+        logger.info(f'Iteration {i+1}')
+        single_request(host)
+
+
+def test_pick_one_random_per_iteration_with_waits(rseeds):
+    # All the VMs will pick one random
+    # node, not necessarily the same one,
+    # each iteration to send the data for
+    # compute as we use the unique seed only
+    random.seed(rseeds[1])
+
+    for i in range(ITERATIONS):
+        # Induce random wait times of upto 1s + log(10,2) each iteration
+        time.sleep(math.log2(10) + random.random())
         host = random.sample(hosts, 1)[0]
         logger.info(f'Iteration {i+1}')
         single_request(host)
@@ -164,6 +175,7 @@ test_map = {
     3: test_pick_same_five_random,
     4: test_pick_single_random,
     5: test_pick_one_random_per_iteration,
+    6: test_pick_one_random_per_iteration_with_waits,
 }
 
 if __name__ == '__main__':
