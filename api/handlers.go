@@ -2,6 +2,7 @@ package api
 
 import (
 	"cider/functions"
+	"cider/gossip"
 	"cider/log"
 	"encoding/json"
 	"io/ioutil"
@@ -18,6 +19,12 @@ func getTasks(response http.ResponseWriter, request *http.Request) {
 
 // deployTasks: PUT /tasks handler
 func deployTask(response http.ResponseWriter, request *http.Request) {
+	// TODO:
+	// 	Use gossip.GetMembershipList() to get the current membership list.
+	// 	Verify that the task came from the known peers or localhost.
+	// 	If from localhost then find the compute node to deploy it to.
+	// 	If from known peer then deploy locally
+	//  Else reject the request.
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		log.Warning(err)
@@ -88,7 +95,7 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 	} else if tasks[taskId].Status == Stopped {
 		writeMessage(&response, http.StatusConflict, "This task has already stopped.")
 	} else {
-		tasks[taskId].Abort <- true	
+		tasks[taskId].Abort <- true
 		writeMessage(&response, http.StatusOK, "Aborted task %s", taskId)
 	}
 }
@@ -113,7 +120,7 @@ func getTaskResult(response http.ResponseWriter, request *http.Request) {
 	taskId := chi.URLParam(request, "id")
 	log.Debug(taskId)
 	if _, ok := tasks[taskId]; !ok {
-		response.WriteHeader(http.StatusNotFound)		
+		response.WriteHeader(http.StatusNotFound)
 	} else if tasks[taskId].Status != Stopped {
 		writeMessage(&response, http.StatusNotFound, "Result is not available yet.")
 	} else {
