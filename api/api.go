@@ -2,18 +2,16 @@ package api
 
 import (
 	"cider/config"
+	"cider/exportapi"
 	"cider/handle"
 	"cider/log"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
-
-	"github.com/go-chi/chi/v5"
 )
 
-var tasks map[string]Task
-
 func Start() {
-	tasks = make(map[string]Task)
+	exportapi.Tasks = make(map[string]exportapi.Task)
 	router := chi.NewRouter()
 
 	router.Route("/tasks", func(router chi.Router) {

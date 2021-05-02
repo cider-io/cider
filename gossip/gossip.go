@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"cider/config"
+	"cider/exportapi"
 	"cider/handle"
 	"cider/log"
 	"cider/util"
@@ -16,10 +17,18 @@ import (
 	"time"
 )
 
+type Profile struct { // Node profile
+	Reputation int
+	Load       int
+	Cores      int
+	Ram        int
+}
+
 type Member struct { // membership list entry
 	Heartbeat   int
 	LastUpdated time.Time
 	Failed      bool
+	NodeProfile Profile
 }
 
 type Node struct {
@@ -38,6 +47,9 @@ func heartbeat() {
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
 	Self.MembershipList[Self.IpAddress] = me
+
+	// TODO: Need to update the local node reputation and load
+	exportapi.GetCurrentLoad()
 
 	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
 	keys := make([]string, 0, len(Self.MembershipList))
@@ -118,7 +130,7 @@ func failureDetection() {
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		handle.Fatal(errors.New("This node has possibly been marked as " +
+		handle.Fatal(errors.New("this node has possibly been marked as " +
 			"failed by all other nodes in the cluster. Attempt to restart"))
 	}
 }
@@ -157,6 +169,8 @@ func Start() {
 	// TODO: We would probably want to have larger TFail and TRemove in the begining to allow for init.
 	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, TFail: config.InitialTFail, TRemove: 2 * config.InitialTFail}
 
+	gatherSystemInfo()
+
 	prettyPrintNode("Initial node configuration: ", Self)
 
 	//introducer: it can be further improved through config file
@@ -182,5 +196,5 @@ func Start() {
 	}()
 
 	wg.Wait()
-	handle.Fatal(errors.New("Gossip has exited"))
+	handle.Fatal(errors.New("gossip has exited"))
 }
