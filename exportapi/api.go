@@ -9,6 +9,5 @@ func GetCurrentLoad() int {
 			unfinishedTasks++
 		}
 	}
-
 	return unfinishedTasks
 }

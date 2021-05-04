@@ -46,10 +46,8 @@ func heartbeat() {
 	me := Self.MembershipList[Self.IpAddress]
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
+	me.NodeProfile.Load = exportapi.GetCurrentLoad()
 	Self.MembershipList[Self.IpAddress] = me
-
-	// TODO: Need to update the local node reputation and load
-	exportapi.GetCurrentLoad()
 
 	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
 	keys := make([]string, 0, len(Self.MembershipList))

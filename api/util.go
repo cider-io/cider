@@ -44,7 +44,7 @@ func writeStruct(response *http.ResponseWriter, body interface{}) {
 	(*response).Write(append(jsonBody, '\r', '\n'))
 }
 
-// Generate UUID using time, local ip
+// generateUUID: Generate UUID using time, local ip
 func generateUUID() (string, error) {
 	input, err := time.Now().MarshalBinary()
 	if err != nil {
@@ -65,7 +65,7 @@ func generateUUID() (string, error) {
 	return fmt.Sprintf("%x", sha256.Sum256(input)), nil
 }
 
-// Check if IP is loopback or local IP
+// isLocalIp: Check if IP is loopback or local IP
 func isLocalIp(ip string) bool {
 	if !net.ParseIP(ip).IsLoopback() {
 		nodeIpAddress, err := util.GetIpAddress()
@@ -80,27 +80,44 @@ func isLocalIp(ip string) bool {
 	return true
 }
 
-// Check if the ip is in membership list from gossip
+// isValidRemote: Check if the ip is in membership list from gossip
 func isValidRemote(ip string) bool {
 	membershipList := exportgossip.GetMembershipList()
-	for memberIp := range membershipList {
-		if memberIp == ip {
-			return true
-		}
-	}
-
-	return false
+	_, ok := membershipList[ip]
+	return ok
 }
 
-// Returns a suitable compute node if available
+// findSuitableComputeNode: Returns a suitable compute node if available
 // based on the task request, else it returns empty string
 func findSuitableComputeNode(taskRequest exportapi.TaskRequest) string {
-	// TODO: The algorithm for picking a
-	//  suitable node needs to go here
-	return ""
+	membershipList := exportgossip.GetMembershipList()
+	maxScore := -1.0
+	suitableNode := ""
+	for ip, node := range membershipList {
+		cores := float64(node.NodeProfile.Cores)
+		// Adding a small delta to avoid potential divide by 0 error
+		load := float64(node.NodeProfile.Load) + 0.0000000001
+		memory := float64(node.NodeProfile.Ram)
+		reputation := float64(node.NodeProfile.Reputation)
+
+		effectiveLoad := load / cores
+
+		// TODO: (potential) We need scaling parameters to adjust
+		//   priorities to each of the three factors:
+		// 	 		memory, effective load, reputation.
+		//   The scaling params should be based on the task that we are
+		//   looking to deploy.
+		score := (memory / effectiveLoad) + reputation
+
+		if score > maxScore {
+			maxScore = score
+			suitableNode = ip
+		}
+	}
+	return suitableNode
 }
 
-// Update the reputation
+// updateNodeReputation: Update the reputation
 func updateNodeReputation() {
 	nodeIpAddress, err := util.GetIpAddress()
 	if err != nil {
@@ -114,7 +131,7 @@ func updateNodeReputation() {
 	}
 }
 
-// Routine to run async for task completion
+// completeTask: Routine to run async for task completion
 func completeTask(taskId string) {
 	task := exportapi.Tasks[taskId]
 	task.Status = exportapi.Running
@@ -139,7 +156,7 @@ func completeTask(taskId string) {
 	exportapi.Tasks[taskId] = task
 }
 
-// Log metrics
+// MetricsLog: Log metrics
 func MetricsLog(metricsIn exportapi.TaskMetrics) {
 	metrics, _ := json.Marshal(metricsIn)
 	log.Output("METRIC ", 3, string(metrics))

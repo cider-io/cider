@@ -38,7 +38,7 @@ func gatherSystemInfo() {
 	node.NodeProfile.Ram, _ = strconv.Atoi(sysinfo["totalMemory"])
 	node.NodeProfile.Load = 0
 
-	// TODO: Update to get reputation from persistent storage
+	// TODO: (potential) Update to get reputation from persistent storage
 	node.NodeProfile.Reputation = 0
 
 	Self.MembershipList[Self.IpAddress] = node

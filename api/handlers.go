@@ -38,7 +38,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	if isLocalIp(ip) {
 		suitableIp := findSuitableComputeNode(taskRequest)
 		if !isLocalIp(suitableIp) {
-			// TODO: We need to figureout how to send
+			// TODO: We need to figure out how to send
 			//  the request to the suitable remote node.
 			//  We should return whatever response received
 			//  from the remote node.
