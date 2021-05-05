@@ -1,8 +1,9 @@
 package gossip
 
 import (
-	"cider/log"
 	"cider/handle"
+	"cider/log"
+	"cider/sysinfo"
 	"encoding/json"
 	"strconv"
 	"time"
@@ -26,4 +27,19 @@ func prettyPrintNode(message string, node Node) {
 	prettyPrintedJson, err := json.MarshalIndent(node, prefix, indent)
 	handle.Fatal(err)
 	log.Info(message, string(prettyPrintedJson))
+}
+
+// Get the local node profile during init
+func gatherSystemInfo() {
+	sysinfo := sysinfo.SysInfo()
+	log.Info(sysinfo)
+	node := Self.MembershipList[Self.IpAddress]
+	node.NodeProfile.Cores, _ = strconv.Atoi(sysinfo["ncpu"])
+	node.NodeProfile.Ram, _ = strconv.Atoi(sysinfo["totalMemory"])
+	node.NodeProfile.Load = 0
+
+	// TODO: (potential) Update to get reputation from persistent storage
+	node.NodeProfile.Reputation = 0
+
+	Self.MembershipList[Self.IpAddress] = node
 }
