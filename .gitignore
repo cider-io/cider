@@ -6,3 +6,4 @@ cider
 *.DS_Store
 *.vscode
 *checkpoint.ipynb
+.ipynb_checkpoints
