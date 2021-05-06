@@ -6,6 +6,7 @@ import (
 	"cider/handle"
 	"cider/log"
 	"cider/util"
+	"cider/sysinfo"
 	"encoding/gob"
 	"errors"
 	"flag"
@@ -17,8 +18,7 @@ import (
 	"time"
 )
 
-type Profile struct { // Node profile
-	Reputation int
+type Profile struct { // member profile
 	Load       int
 	Cores      int
 	Ram        int
@@ -34,7 +34,7 @@ type Member struct { // membership list entry
 type Node struct {
 	IpAddress      string
 	MembershipList map[string]Member // maps member IP address to Member struct
-	TFail          time.Duration
+	TFail          time.Duration // FIXME 
 	TRemove        time.Duration
 }
 
@@ -46,7 +46,7 @@ func heartbeat() {
 	me := Self.MembershipList[Self.IpAddress]
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
-	me.Profile.Load = exportapi.GetCurrentLoad()
+	me.Profile.Load = exportapi.Load
 	Self.MembershipList[Self.IpAddress] = me
 
 	// activeMembers doesn't include the node itself
@@ -77,17 +77,14 @@ func heartbeat() {
 // updateMembershipList: Update the membership list based on gossips from neighbors
 func updateMembershipList(neighborsMembershipList map[string]Member) {
 	for ip, member := range neighborsMembershipList {
-		resolvedIps, err := net.LookupIP(ip)
-		handle.Fatal(err)
-		resolvedIp := resolvedIps[0].To4().String()
-		if resolvedIp != Self.IpAddress {
-			localVal, ok := Self.MembershipList[resolvedIp]
+		if ip != Self.IpAddress {
+			localVal, ok := Self.MembershipList[ip]
 			if (ok && !localVal.Failed && member.Heartbeat > localVal.Heartbeat) || !ok {
 				member.LastUpdated = time.Now()
-				Self.MembershipList[resolvedIp] = member
+				Self.MembershipList[ip] = member
 			}
 		}
-		prettyPrintMember(resolvedIp, Self.MembershipList[resolvedIp])
+		prettyPrintMember(ip, Self.MembershipList[ip])
 	}
 }
 
@@ -112,6 +109,7 @@ func failureDetection() {
 	Self.TFail = 5 * time.Duration(numGossipNodes) * time.Second
 	Self.TRemove = 2 * Self.TFail
 
+	// remove failed nodes that have exceed the removal timeout
 	removeList := make([]string, 0, len(Self.MembershipList))
 	for ip, member := range Self.MembershipList {
 		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.TFail {
@@ -129,13 +127,11 @@ func failureDetection() {
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		handle.Fatal(errors.New("this node has possibly been marked as " +
-			"failed by all other nodes in the cluster. Attempt to restart"))
+		log.Warning("This node has no one it's membership list. Are you connected to the network?")
 	}
 }
 
-// gossip: Gossips the local membership list to N random neighbors
-// 				N = log2(TOTAL_CLUSTER_NODES)
+// gossip: Gossips the local membership list to at most log2(cluster_size) random neighbors
 func gossip() {
 	startTime := time.Now()
 	for {
@@ -152,34 +148,34 @@ func Start() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	// intialize node profile
+	sysInfo := sysinfo.GetSysInfo()
+	log.Info(sysInfo)
+	profile := Profile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
+	// profile.Load is updated when we heartbeat
+
 	// initialize node
 	ipAddress, err := util.GetIpAddress()
 	handle.Fatal(err)
 	membershipList := make(map[string]Member)
-	// TODO: add introducer to the membership list after adding the introducer cli arg
-
-	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-
-	// For Testing purposes only. Remove when we have a robust way of introducing nodes.
-	//
-	// membershipList["sp21-cs525-g17-01.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-	// membershipList["sp21-cs525-g17-02.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
+	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false, Profile: profile}
 
 	// TODO: We would probably want to have larger TFail and TRemove in the begining to allow for init.
 	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, TFail: config.InitialTFail, TRemove: 2 * config.InitialTFail}
-
-	gatherSystemInfo()
-
 	prettyPrintNode("Initial node configuration: ", Self)
 
+	// add introducer to the membership list 
 	introducer := flag.String("introducer", "sp21-cs525-g17-01.cs.illinois.edu", "Introducer's hostname or IP address")
 	flag.Parse()
 
-	if *introducer != ipAddress {
-		log.Info("Add introducer to the membershipList list: " + *introducer)
-		membershipList1 := make(map[string]Member)
-		membershipList1[*introducer] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-		updateMembershipList(membershipList1)
+	// resolve the introducer's hostname/ip to an ipv4 address
+	introducerIps, err := net.LookupIP(*introducer)
+	handle.Fatal(err)
+	introducerIp := introducerIps[0].To4().String()
+
+	if introducerIp != ipAddress {
+		membershipList[introducerIp] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
+		log.Info("Added introducer", introducerIp,  "to the membershipList list.")
 	}
 	log.Info("Starting gossip")
 

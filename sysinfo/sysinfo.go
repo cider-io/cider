@@ -2,7 +2,6 @@ package sysinfo
 
 import (
 	"cider/handle"
-	"fmt"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -10,14 +9,22 @@ import (
 	"strings"
 )
 
-// SysInfo returns system specific info, memory in bytes
-func SysInfo() map[string]string {
+type SysInfo struct {
+	Os string
+	Arch string
+	AvailableCores int
+	TotalMemory int
+	FreeMemory int
+}
 
-	sysinfo := make(map[string]string)
+// GetSysInfo: returns system specific info, memory in bytes
+func GetSysInfo() SysInfo {
+
 	multFactor := map[byte]int{'G': 1024 * 1024 * 1024, 'M': 1024 * 1024, 'K': 1024}
 
 	os := runtime.GOOS
 	arch := runtime.GOARCH
+	var totalMemory, freeMemory int
 
 	cmd := ""
 	if os == "darwin" {
@@ -34,26 +41,20 @@ func SysInfo() map[string]string {
 	memory := string(memOut[:])
 	if os == "darwin" {
 		fields := strings.Fields(memory)
-		totalMemory, err := strconv.Atoi(fields[1][:len(fields[1])-1])
+		totalMemory, err = strconv.Atoi(fields[1][:len(fields[1])-1])
 		handle.Warning(err)
 		totalMemory = totalMemory * multFactor[fields[1][len(fields[1])-1]]
 
-		freeMemory, err := strconv.Atoi(fields[5][:len(fields[5])-1])
+		freeMemory, err = strconv.Atoi(fields[5][:len(fields[5])-1])
 		handle.Warning(err)
 		freeMemory = freeMemory * multFactor[fields[5][len(fields[5])-1]]
 
-		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
-		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)
-
 	} else if os == "linux" {
 		fields := strings.Fields(strings.Split(memory, "\n")[1])
-		totalMemory, err := strconv.Atoi(fields[1])
+		totalMemory, err = strconv.Atoi(fields[1])
 		handle.Warning(err)
-		freeMemory, err := strconv.Atoi(fields[3])
+		freeMemory, err = strconv.Atoi(fields[3])
 		handle.Warning(err)
-
-		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
-		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)
 
 	} else {
 		// Windows
@@ -68,20 +69,13 @@ func SysInfo() map[string]string {
 		totalMemoryPattern, _ := regexp.Compile("Total Physical Memory: *(?P<amount>.*) (?P<units>.*B)")
 		submatches := totalMemoryPattern.FindStringSubmatch(memory)
 		amount, _ := strconv.ParseInt(strings.ReplaceAll(submatches[1], ",", ""), 10, 0)
-		totalMemory := int(amount) * multFactor[submatches[2][0]]
+		totalMemory = int(amount) * multFactor[submatches[2][0]]
 
 		availableMemoryPattern, _ := regexp.Compile("Available Physical Memory: *(?P<amount>.*) (?P<units>.*B)")
 		submatches = availableMemoryPattern.FindStringSubmatch(memory)
 		amount, _ = strconv.ParseInt(strings.ReplaceAll(submatches[1], ",", ""), 10, 0)
-		freeMemory := int(amount) * multFactor[submatches[2][0]]
-
-		sysinfo["totalMemory"] = strconv.Itoa(totalMemory)
-		sysinfo["freeMemory"] = strconv.Itoa(freeMemory)
+		freeMemory = int(amount) * multFactor[submatches[2][0]]
 	}
 
-	sysinfo["os"] = os
-	sysinfo["arch"] = arch
-	sysinfo["ncpu"] = fmt.Sprintf("%d", runtime.NumCPU())
-
-	return sysinfo
+	return SysInfo{Os: os, Arch: arch, TotalMemory: totalMemory, FreeMemory: freeMemory, AvailableCores: runtime.NumCPU()}
 }

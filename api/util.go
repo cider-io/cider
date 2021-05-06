@@ -2,7 +2,6 @@ package api
 
 import (
 	"cider/config"
-	"cider/exportapi"
 	"cider/exportgossip"
 	"cider/functions"
 	"cider/handle"
@@ -89,25 +88,24 @@ func isValidRemote(ip string) bool {
 
 // findSuitableComputeNode: Returns a suitable compute node if available
 // based on the task request, else it returns empty string
-func findSuitableComputeNode(taskRequest exportapi.TaskRequest) string {
+func findSuitableComputeNode(taskRequest TaskRequest) string {
 	membershipList := exportgossip.GetMembershipList()
 	maxScore := -1.0
 	suitableNode := ""
 	for ip, node := range membershipList {
 		cores := float64(node.Profile.Cores)
 		// Adding a small delta to avoid potential divide by 0 error
-		load := float64(node.Profile.Load) + 0.0000000001
-		memory := float64(node.Profile.Ram)
-		reputation := float64(node.Profile.Reputation)
+		load := float64(node.Profile.Load) + 0.0000000001 // FIXME
+		ram := float64(node.Profile.Ram)
 
 		effectiveLoad := load / cores
 
 		// TODO: (potential) We need scaling parameters to adjust
 		//   priorities to each of the three factors:
-		// 	 		memory, effective load, reputation.
+		// 	 		ram, effective load, reputation (TODO).
 		//   The scaling params should be based on the task that we are
 		//   looking to deploy.
-		score := (memory / effectiveLoad) + reputation
+		score := (ram / effectiveLoad)
 
 		if score > maxScore {
 			maxScore = score
@@ -117,35 +115,21 @@ func findSuitableComputeNode(taskRequest exportapi.TaskRequest) string {
 	return suitableNode
 }
 
-// updateNodeReputation: Update the reputation
-func updateNodeReputation() {
-	nodeIpAddress, err := util.GetIpAddress()
-	if err != nil {
-		log.Error(err)
-	} else {
-		membershipList := exportgossip.GetMembershipList()
-		node := membershipList[nodeIpAddress]
-		node.Profile.Reputation++
-		membershipList[nodeIpAddress] = node
-		log.Info("Node reputation updated to", node.Profile.Reputation)
-	}
-}
-
 // completeTask: Routine to run async for task completion
 func completeTask(taskId string) {
-	task := exportapi.Tasks[taskId]
-	task.Status = exportapi.Running
-	exportapi.Tasks[taskId] = task
+	task := Tasks[taskId]
+	task.Status = Running
+	Tasks[taskId] = task
 
+	updateLoad <- 1
 	taskResult, taskErr := functions.Map[task.Function](task.Data, task.Abort)
-	task.Status = exportapi.Stopped
+	updateLoad <- -1
+
+	task.Status = Stopped
 	task.Result = taskResult
 
 	task.Metrics.EndTime = time.Now().Format("15:04:05.000000")
-
-	updateNodeReputation()
-
-	MetricsLog(task.Metrics)
+	LogMetrics(task.Metrics)
 
 	if taskErr != nil {
 		task.Error = taskErr.Error()
@@ -153,11 +137,11 @@ func completeTask(taskId string) {
 		task.Error = ""
 	}
 
-	exportapi.Tasks[taskId] = task
+	Tasks[taskId] = task
 }
 
-// MetricsLog: Log metrics
-func MetricsLog(metricsIn exportapi.TaskMetrics) {
+// LogMetrics: Log metrics
+func LogMetrics(metricsIn TaskMetrics) {
 	metrics, _ := json.Marshal(metricsIn)
 	log.Output("METRIC ", 3, string(metrics))
 }
