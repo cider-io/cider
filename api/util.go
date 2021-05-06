@@ -2,7 +2,6 @@ package api
 
 import (
 	"cider/config"
-	"cider/exportgossip"
 	"cider/functions"
 	"cider/handle"
 	"cider/log"
@@ -77,42 +76,6 @@ func isLocalIp(ip string) bool {
 		}
 	}
 	return true
-}
-
-// isValidRemote: Check if the ip is in membership list from gossip
-func isValidRemote(ip string) bool {
-	membershipList := exportgossip.GetMembershipList()
-	_, ok := membershipList[ip]
-	return ok
-}
-
-// findSuitableComputeNode: Returns a suitable compute node if available
-// based on the task request, else it returns empty string
-func findSuitableComputeNode(taskRequest TaskRequest) string {
-	membershipList := exportgossip.GetMembershipList()
-	maxScore := -1.0
-	suitableNode := ""
-	for ip, node := range membershipList {
-		cores := float64(node.Profile.Cores)
-		// Adding a small delta to avoid potential divide by 0 error
-		load := float64(node.Profile.Load) + 0.0000000001 // FIXME
-		ram := float64(node.Profile.Ram)
-
-		effectiveLoad := load / cores
-
-		// TODO: (potential) We need scaling parameters to adjust
-		//   priorities to each of the three factors:
-		// 	 		ram, effective load, reputation (TODO).
-		//   The scaling params should be based on the task that we are
-		//   looking to deploy.
-		score := (ram / effectiveLoad)
-
-		if score > maxScore {
-			maxScore = score
-			suitableNode = ip
-		}
-	}
-	return suitableNode
 }
 
 // completeTask: Routine to run async for task completion

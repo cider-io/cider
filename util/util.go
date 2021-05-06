@@ -13,7 +13,7 @@ func GetIpAddress() (string, error) {
 	interfaces, err := net.Interfaces()
 	handle.Fatal(err)
 
-	// FIXME: ethernet usually shows up before wifi
+	// FIXME ethernet usually shows up before wifi
 	// user should be able to configure which interface they want CIDER client to run on
 	lanPattern, err := regexp.Compile("(?i:.*(wifi|wi-fi|eth|en|utun).*)")
 	handle.Fatal(err)

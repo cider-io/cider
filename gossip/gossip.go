@@ -57,6 +57,7 @@ func heartbeat() {
 		}
 	}
 
+	// gossip to a max of log_2(cluster_size) members
 	logBase2 := math.Round(math.Log2(float64(len(Self.MembershipList))))
 	numActiveMembers := float64(len(activeMembers))
 	numGossipNodes := int(math.Min(logBase2, numActiveMembers))
@@ -106,6 +107,7 @@ func listenForGossip() {
 func failureDetection() {
 	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))), 1)
 
+	// FIXME replace these magic numbers
 	Self.FailureTimeout = 5 * time.Duration(numGossipNodes) * time.Second
 	Self.RemovalTimeout = 2 * Self.FailureTimeout
 
@@ -160,7 +162,6 @@ func Start() {
 	membershipList := make(map[string]Member)
 	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false, Profile: profile}
 
-	// TODO: We would probably want to have larger FailureTimeout and RemovalTimeout in the begining to allow for init.
 	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, FailureTimeout: config.InitialFailureTimeout, RemovalTimeout: 2 * config.InitialFailureTimeout}
 	prettyPrintNode("Initial node configuration: ", Self)
 

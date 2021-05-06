@@ -2,6 +2,7 @@ package api
 
 import (
 	"cider/log"
+	"cider/gossip"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io/ioutil"
@@ -17,7 +18,7 @@ func getTasks(response http.ResponseWriter, request *http.Request) {
 
 // deployTasks: PUT /tasks handler
 func deployTask(response http.ResponseWriter, request *http.Request) {
-	ip, _, err := net.SplitHostPort(request.RemoteAddr)
+	requestSourceIp, _, err := net.SplitHostPort(request.RemoteAddr)
 	if err != nil {
 		log.Warning(err)
 		response.WriteHeader(http.StatusBadRequest)
@@ -39,16 +40,11 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	}
 	log.Debug(request.Method, request.URL.Path, taskRequest)
 
-	if isLocalIp(ip) {
-		suitableIp := findSuitableComputeNode(taskRequest)
-		if !isLocalIp(suitableIp) {
-			//  TODO: We need to figure out how to send
-			//  the request to the suitable remote node.
-			//  We should return whatever response received
-			//  from the remote node.
-		}
-	} else if !isValidRemote(ip) {
-		log.Warning("request from invalid remote ip:", ip)
+	if isLocalIp(requestSourceIp) {
+		// TODO deploy the task locally if possible
+		// otherwise, send the task to a remote node
+	} else if _, ok := gossip.Self.MembershipList[requestSourceIp]; !ok {
+		log.Warning("Denied request from unknown node", requestSourceIp)
 		response.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -64,7 +60,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 
 	go completeTask(taskId) // async launch the function
 
-	// FIXME: this needs to be sent confidentially (via HTTPS)
+	// FIXME this needs to be sent confidentially (via HTTPS)
 	writeStruct(&response, Tasks[taskId])
 }
 
