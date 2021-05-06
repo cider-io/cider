@@ -34,8 +34,8 @@ type Member struct { // membership list entry
 type Node struct {
 	IpAddress      string
 	MembershipList map[string]Member // maps member IP address to Member struct
-	TFail          time.Duration // FIXME 
-	TRemove        time.Duration
+	FailureTimeout time.Duration
+	RemovalTimeout time.Duration
 }
 
 var Self Node
@@ -106,17 +106,17 @@ func listenForGossip() {
 func failureDetection() {
 	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))), 1)
 
-	Self.TFail = 5 * time.Duration(numGossipNodes) * time.Second
-	Self.TRemove = 2 * Self.TFail
+	Self.FailureTimeout = 5 * time.Duration(numGossipNodes) * time.Second
+	Self.RemovalTimeout = 2 * Self.FailureTimeout
 
 	// remove failed nodes that have exceed the removal timeout
 	removeList := make([]string, 0, len(Self.MembershipList))
 	for ip, member := range Self.MembershipList {
-		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.TFail {
+		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.FailureTimeout {
 			member.Failed = true
 			Self.MembershipList[ip] = member
 			log.Debug("Node marked as failed:", ip)
-		} else if member.Failed && time.Since(member.LastUpdated) > Self.TRemove {
+		} else if member.Failed && time.Since(member.LastUpdated) > Self.RemovalTimeout {
 			removeList = append(removeList, ip)
 		}
 	}
@@ -127,7 +127,7 @@ func failureDetection() {
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		log.Warning("This node has no one it's membership list. Are you connected to the network?")
+		log.Warning("Are you connected to the network? We can't find any active CIDER nodes.")
 	}
 }
 
@@ -160,8 +160,8 @@ func Start() {
 	membershipList := make(map[string]Member)
 	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false, Profile: profile}
 
-	// TODO: We would probably want to have larger TFail and TRemove in the begining to allow for init.
-	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, TFail: config.InitialTFail, TRemove: 2 * config.InitialTFail}
+	// TODO: We would probably want to have larger FailureTimeout and RemovalTimeout in the begining to allow for init.
+	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, FailureTimeout: config.InitialFailureTimeout, RemovalTimeout: 2 * config.InitialFailureTimeout}
 	prettyPrintNode("Initial node configuration: ", Self)
 
 	// add introducer to the membership list 
