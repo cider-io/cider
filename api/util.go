@@ -78,8 +78,8 @@ func isLocalIp(ip string) bool {
 	return true
 }
 
-// completeTask: Routine to run async for task completion
-func completeTask(taskId string) {
+// runTask: Async run a task
+func runTask(taskId string) {
 	task := Tasks[taskId]
 	task.Status = Running
 	Tasks[taskId] = task

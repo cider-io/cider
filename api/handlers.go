@@ -58,7 +58,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 
 	Tasks[taskId] = Task{Id: taskId, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0, Abort: make(chan bool), Metrics: TaskMetrics{Id: taskId, Function: taskRequest.Function, StartTime: time.Now().Format("15:04:05.000000")}}
 
-	go completeTask(taskId) // async launch the function
+	go runTask(taskId) // async launch the function
 
 	// FIXME this needs to be sent confidentially (via HTTPS)
 	writeStruct(&response, Tasks[taskId])
