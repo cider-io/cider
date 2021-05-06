@@ -28,7 +28,7 @@ type Member struct { // membership list entry
 	Heartbeat   int
 	LastUpdated time.Time
 	Failed      bool
-	NodeProfile Profile
+	Profile     Profile
 }
 
 type Node struct {
@@ -46,7 +46,7 @@ func heartbeat() {
 	me := Self.MembershipList[Self.IpAddress]
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
-	me.NodeProfile.Load = exportapi.GetCurrentLoad()
+	me.Profile.Load = exportapi.GetCurrentLoad()
 	Self.MembershipList[Self.IpAddress] = me
 
 	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode

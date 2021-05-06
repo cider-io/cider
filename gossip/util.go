@@ -34,12 +34,12 @@ func gatherSystemInfo() {
 	sysinfo := sysinfo.SysInfo()
 	log.Info(sysinfo)
 	node := Self.MembershipList[Self.IpAddress]
-	node.NodeProfile.Cores, _ = strconv.Atoi(sysinfo["ncpu"])
-	node.NodeProfile.Ram, _ = strconv.Atoi(sysinfo["totalMemory"])
-	node.NodeProfile.Load = 0
+	node.Profile.Cores, _ = strconv.Atoi(sysinfo["ncpu"])
+	node.Profile.Ram, _ = strconv.Atoi(sysinfo["totalMemory"])
+	node.Profile.Load = 0
 
 	// TODO: (potential) Update to get reputation from persistent storage
-	node.NodeProfile.Reputation = 0
+	node.Profile.Reputation = 0
 
 	Self.MembershipList[Self.IpAddress] = node
 }

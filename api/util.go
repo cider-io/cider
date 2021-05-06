@@ -94,11 +94,11 @@ func findSuitableComputeNode(taskRequest exportapi.TaskRequest) string {
 	maxScore := -1.0
 	suitableNode := ""
 	for ip, node := range membershipList {
-		cores := float64(node.NodeProfile.Cores)
+		cores := float64(node.Profile.Cores)
 		// Adding a small delta to avoid potential divide by 0 error
-		load := float64(node.NodeProfile.Load) + 0.0000000001
-		memory := float64(node.NodeProfile.Ram)
-		reputation := float64(node.NodeProfile.Reputation)
+		load := float64(node.Profile.Load) + 0.0000000001
+		memory := float64(node.Profile.Ram)
+		reputation := float64(node.Profile.Reputation)
 
 		effectiveLoad := load / cores
 
@@ -125,9 +125,9 @@ func updateNodeReputation() {
 	} else {
 		membershipList := exportgossip.GetMembershipList()
 		node := membershipList[nodeIpAddress]
-		node.NodeProfile.Reputation++
+		node.Profile.Reputation++
 		membershipList[nodeIpAddress] = node
-		log.Info("Node reputation updated to", node.NodeProfile.Reputation)
+		log.Info("Node reputation updated to", node.Profile.Reputation)
 	}
 }
 
