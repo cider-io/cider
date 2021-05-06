@@ -49,22 +49,23 @@ func heartbeat() {
 	me.Profile.Load = exportapi.GetCurrentLoad()
 	Self.MembershipList[Self.IpAddress] = me
 
-	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
-	keys := make([]string, 0, len(Self.MembershipList))
-	for k, val := range Self.MembershipList {
-		if k != Self.IpAddress && !val.Failed {
-			keys = append(keys, k)
+	// activeMembers doesn't include the node itself
+	activeMembers := make([]string, 0, len(Self.MembershipList))
+	for ip, member := range Self.MembershipList {
+		if ip != Self.IpAddress && !member.Failed {
+			activeMembers = append(activeMembers, ip)
 		}
 	}
 
-	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))),
-		float64(len(keys)))
+	logBase2 := math.Round(math.Log2(float64(len(Self.MembershipList))))
+	numActiveMembers := float64(len(activeMembers))
+	numGossipNodes := int(math.Min(logBase2, numActiveMembers))
 
-	if len(keys) > 0 {
+	if len(activeMembers) > 0 {
 		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
-		for i := 0; i < int(numGossipNodes); i++ {
-			connection, err := net.Dial("udp", keys[i]+":"+strconv.Itoa(config.GossipPort))
+		rand.Shuffle(len(activeMembers), func(i, j int) { activeMembers[i], activeMembers[j] = activeMembers[j], activeMembers[i] })
+		for i := 0; i < numGossipNodes; i++ {
+			connection, err := net.Dial("udp", activeMembers[i]+":"+strconv.Itoa(config.GossipPort))
 			handle.Fatal(err)
 			encoder := gob.NewEncoder(connection)
 			encoder.Encode(Self.MembershipList)
@@ -171,8 +172,7 @@ func Start() {
 
 	prettyPrintNode("Initial node configuration: ", Self)
 
-	//introducer: it can be further improved through config file
-	introducer := flag.String("introducer", "config.txt", "The path to config file")
+	introducer := flag.String("introducer", "sp21-cs525-g17-01.cs.illinois.edu", "Introducer's hostname or IP address")
 	flag.Parse()
 
 	if *introducer != ipAddress {
