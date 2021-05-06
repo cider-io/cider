@@ -45,7 +45,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 		}
 	} else if !isValidRemote(ip) {
 		log.Warning("request from invalid remote ip:", ip)
-		response.WriteHeader(http.StatusBadRequest)
+		response.WriteHeader(http.StatusNotFound)
 		return
 	}
 
