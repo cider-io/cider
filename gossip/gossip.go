@@ -153,7 +153,7 @@ func Start() {
 	// intialize node profile
 	sysInfo := sysinfo.GetSysInfo()
 	log.Info(sysInfo)
-	profile := Profile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
+	profile := ResourceProfile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
 	// profile.Load is updated when we heartbeat
 
 	// initialize node
