@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-type Profile struct { // member profile
+type ResourceProfile struct {
 	Load       int
 	Cores      int
 	Ram        int
@@ -28,7 +28,7 @@ type Member struct { // membership list entry
 	Heartbeat   int
 	LastUpdated time.Time
 	Failed      bool
-	Profile     Profile
+	Profile     ResourceProfile
 }
 
 type Node struct {
