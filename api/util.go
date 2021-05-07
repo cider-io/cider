@@ -3,6 +3,7 @@ package api
 import (
 	"cider/config"
 	"cider/functions"
+	"cider/gossip"
 	"cider/handle"
 	"cider/log"
 	"cider/util"
@@ -76,6 +77,14 @@ func isLocalIp(ip string) bool {
 		}
 	}
 	return true
+}
+
+// isTrustedRemote: Return whether or not we trust this remote node
+func isTrustedRemote(ip string) bool {
+	// TODO Add authentication/authorization logic
+	// Currently, a trusted node is just one that's in our membership list
+	_, ok := gossip.Self.MembershipList[ip]
+	return ok 
 }
 
 // runTask: Async run a task

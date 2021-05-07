@@ -2,7 +2,6 @@ package api
 
 import (
 	"cider/log"
-	"cider/gossip"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io/ioutil"
@@ -43,8 +42,9 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	if isLocalIp(requestSourceIp) {
 		// TODO deploy the task locally if possible
 		// otherwise, send the task to a remote node
-	} else if _, ok := gossip.Self.MembershipList[requestSourceIp]; !ok {
-		log.Warning("Denied request from unknown node", requestSourceIp)
+		
+	} else if isTrustedRemote(requestSourceIp) {
+		log.Warning("Denied request from untrusted source", requestSourceIp)
 		response.WriteHeader(http.StatusNotFound)
 		return
 	}
