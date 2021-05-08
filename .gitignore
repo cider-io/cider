@@ -7,3 +7,4 @@ cider
 *.vscode
 *checkpoint.ipynb
 .ipynb_checkpoints
+tests/test_results*
