@@ -85,7 +85,6 @@ func updateMembershipList(neighborsMembershipList map[string]Member) {
 				Self.MembershipList[ip] = member
 			}
 		}
-		prettyPrintMember(ip, Self.MembershipList[ip])
 	}
 }
 

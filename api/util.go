@@ -6,12 +6,10 @@ import (
 	"cider/gossip"
 	"cider/handle"
 	"cider/log"
-	"cider/util"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
 	"time"
 )
@@ -55,36 +53,9 @@ func generateUUID() (string, error) {
 	rand.Read(nonce)
 	input = append(input, nonce...)
 
-	nodeIpAddress, err := util.GetIpAddress()
-	if err != nil {
-		return "", err
-	}
-	input = append(input, ([]byte(nodeIpAddress))...)
+	input = append(input, ([]byte(gossip.Self.IpAddress))...)
 
 	return fmt.Sprintf("%x", sha256.Sum256(input)), nil
-}
-
-// isLocalIp: Check if IP is loopback or local IP
-func isLocalIp(ip string) bool {
-	if !net.ParseIP(ip).IsLoopback() {
-		nodeIpAddress, err := util.GetIpAddress()
-		if err != nil {
-			log.Error(err)
-			return false
-		}
-		if nodeIpAddress != ip {
-			return false
-		}
-	}
-	return true
-}
-
-// isTrustedRemote: Return whether or not we trust this remote node
-func isTrustedRemote(ip string) bool {
-	// TODO Add authentication/authorization logic
-	// Currently, a trusted node is just one that's in our membership list
-	_, ok := gossip.Self.MembershipList[ip]
-	return ok 
 }
 
 // runTask: Async run a task

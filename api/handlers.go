@@ -5,25 +5,40 @@ import (
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"time"
 )
 
 // getTasks: GET /tasks handler
 func getTasks(response http.ResponseWriter, request *http.Request) {
+	if isUntrustedSource(request, &response) {
+		return
+	}
+	log.Debug(request.Method, request.URL.Path)
 	writeStruct(&response, Tasks)
 }
 
 // deployTasks: PUT /tasks handler
 func deployTask(response http.ResponseWriter, request *http.Request) {
-	requestSourceIp, _, err := net.SplitHostPort(request.RemoteAddr)
-	if err != nil {
-		log.Warning(err)
-		response.WriteHeader(http.StatusBadRequest)
+	if isUntrustedSource(request, &response) {
 		return
 	}
 
+	// if insufficient local resources, redirect the request to a remote CIDER node
+	if insufficientLocalResources() {
+		remoteUrl, status := deployTaskRemotely(request)
+		if status == http.StatusOK {
+			log.Info("Redirected request to remote CIDER node")
+			response.Header().Set("Location", remoteUrl)
+			response.WriteHeader(http.StatusSeeOther)
+		} else {
+			log.Warning("Unable to deploy task to local cluster")
+			response.WriteHeader(status)
+		}
+		return
+	}
+
+	// deploy task locally
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		log.Warning(err)
@@ -39,33 +54,36 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	}
 	log.Debug(request.Method, request.URL.Path, taskRequest)
 
-	if isLocalIp(requestSourceIp) {
-		// TODO deploy the task locally if possible
-		// otherwise, send the task to a remote node
-		
-	} else if isTrustedRemote(requestSourceIp) {
-		log.Warning("Denied request from untrusted source", requestSourceIp)
-		response.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	// generate a globally unique id for a task if it doesn't exist
-	taskId, err := generateUUID()
+	// generate a globally unique id for a task
+	taskId, err := generateUUID() 
 	if err != nil {
+		log.Warning("Unable to generate UUID for task")
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	Tasks[taskId] = Task{Id: taskId, Status: Deploying, Data: taskRequest.Data, Function: taskRequest.Function, Result: 0, Abort: make(chan bool), Metrics: TaskMetrics{Id: taskId, Function: taskRequest.Function, StartTime: time.Now().Format("15:04:05.000000")}}
+	// initialize task
+	Tasks[taskId] = Task{
+		Id: taskId, 
+		Status: Deploying, 
+		Data: taskRequest.Data, 
+		Function: taskRequest.Function, 
+		Result: 0, Abort: make(chan bool), 
+		Metrics: TaskMetrics{
+			Id: taskId, 
+			Function: taskRequest.Function, 
+			StartTime: time.Now().Format("15:04:05.000000")}}
 
-	go runTask(taskId) // async launch the function
-
-	// FIXME this needs to be sent confidentially (via HTTPS)
+	// async launch task and immediately respond to the client
+	go runTask(taskId) 
 	writeStruct(&response, Tasks[taskId])
 }
 
 // getTask: GET /tasks/{id} handler
 func getTask(response http.ResponseWriter, request *http.Request) {
+	if isUntrustedSource(request, &response) {
+		return
+	}
 	log.Debug(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
@@ -78,6 +96,9 @@ func getTask(response http.ResponseWriter, request *http.Request) {
 // abortTask: PUT /tasks/{id} handler
 // TODO abortTask -> updateTask: add URL parameter for action=abort/pause/resume etc.
 func abortTask(response http.ResponseWriter, request *http.Request) {
+	if isUntrustedSource(request, &response) {
+		return
+	}
 	log.Debug(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
@@ -92,6 +113,9 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 
 // deleteTask: DELETE /tasks/{id} handler
 func deleteTask(response http.ResponseWriter, request *http.Request) {
+	if isUntrustedSource(request, &response) {
+		return
+	}
 	log.Debug(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
@@ -106,6 +130,9 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 
 // getTaskResult: GET /tasks/{id}/result handler
 func getTaskResult(response http.ResponseWriter, request *http.Request) {
+	if isUntrustedSource(request, &response) {
+		return
+	}
 	log.Debug(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	log.Debug(taskId)

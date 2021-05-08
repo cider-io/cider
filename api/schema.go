@@ -1,7 +1,10 @@
 package api
 
 import (
+	"cider/log"
 	"bytes"
+	"errors"
+	"strings"
 )
 
 type TaskStatus int
@@ -11,6 +14,8 @@ const (
 	Running
 	Stopped
 )
+
+var stringToStatus = map[string]TaskStatus{"Deploying": Deploying, "Running": Running, "Stopped": Stopped}
 
 func (status TaskStatus) String() string {
 	return [...]string{"Deploying", "Running", "Stopped"}[status]
@@ -23,6 +28,16 @@ func (status TaskStatus) MarshalJSON() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func (status *TaskStatus) UnmarshalJSON(data []byte) error {
+	log.Debug(strings.Trim(string(data), "\""))
+	taskStatus, ok := stringToStatus[strings.Trim(string(data), "\"")] // strip " "
+	*status = taskStatus
+	if !ok {
+		return errors.New("Illegal status string")
+	}
+	return nil
+} 
+
 type TaskMetrics struct {
 	Id        string  `json:"id"`
 	Function  string  `json:"function"`
@@ -30,6 +45,7 @@ type TaskMetrics struct {
 	StartTime string  `json:"start"`
 	EndTime   string  `json:"end"`
 }
+
 type Task struct {
 	Id       string      `json:"id"`
 	Status   TaskStatus  `json:"status"`

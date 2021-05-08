@@ -12,7 +12,7 @@ import (
 func prettyPrintMember(ip string, member Member) {
 	summary := "[" + ip + "]"
 	summary += " [♥:" + strconv.Itoa(member.Heartbeat) + "]"
-	summary += " [Last updated " + strconv.FormatInt(time.Since(member.LastUpdated).Milliseconds(), 10) + " ago]"
+	summary += " [Last updated " + strconv.FormatInt(time.Since(member.LastUpdated).Milliseconds(), 10) + "ms ago]"
 	if member.Failed {
 		summary += " [FAILED]"
 	}

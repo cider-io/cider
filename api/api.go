@@ -25,7 +25,7 @@ func Start() {
 
 	// allow API handlers to update the node's load w/o a locking mechanism
 	updateLoad = make(chan int)
-	go handleLoadUpdates()
+	go handleLoadUpdates() // we don't need a WaitGroup here since ListenAndServe blocks
 
 	router := chi.NewRouter()
 	router.Route("/tasks", func(router chi.Router) {
