@@ -4,10 +4,10 @@
 ```bash
 go build .
 
-# to simulate a resource-constrained IoT device, that will not run tasks
+# To simulate a resource-constrained IoT device, that will not run tasks:
 ./cider --introducer {Introducer IP or hostname} --resource-constrained
 
-# to simulate a capable compute device
+# To simulate a capable compute device:
 ./cider --introducer {Introducer IP or hostname}
 ```
 
