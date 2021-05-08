@@ -67,6 +67,8 @@ func deployTaskRemotely(requestToForward *http.Request) (string, int) {
 		log.Warning(err)
 		return "", http.StatusInternalServerError
 	}
+
+	// if successful PUT, return a redirect URL for the remote task deployment
 	if (*response).StatusCode == http.StatusOK {
 		body, err := ioutil.ReadAll((*response).Body)
 		if err != nil {

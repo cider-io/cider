@@ -26,10 +26,10 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 
 	// if insufficient local resources, redirect the request to a remote CIDER node
 	if insufficientLocalResources() {
-		remoteUrl, status := deployTaskRemotely(request)
+		redirectUrl, status := deployTaskRemotely(request)
 		if status == http.StatusOK {
 			log.Info("Redirected request to remote CIDER node")
-			response.Header().Set("Location", remoteUrl)
+			response.Header().Set("Location", redirectUrl)
 			response.WriteHeader(http.StatusSeeOther)
 		} else {
 			log.Warning("Unable to deploy task to local cluster")

@@ -41,6 +41,7 @@ func Start() {
 
 	log.Info("Serving CIDER API at port " + strconv.Itoa(config.ApiPort))
 
+	// TODO serve API over HTTPS
 	// ListenAndServe is a blocking call-- shouldn't exit!
 	handle.Fatal(http.ListenAndServe(":"+strconv.Itoa(config.ApiPort), router))
 }
