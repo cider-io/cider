@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cider/gossip"
 	"cider/log"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
@@ -14,7 +15,7 @@ func getTasks(response http.ResponseWriter, request *http.Request) {
 	if isUntrustedSource(request, &response) {
 		return
 	}
-	log.Debug(request.Method, request.URL.Path)
+	log.Info(request.Method, request.URL.Path)
 	writeStruct(&response, Tasks)
 }
 
@@ -25,7 +26,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	}
 
 	// if insufficient local resources, redirect the request to a remote CIDER node
-	if insufficientLocalResources() {
+	if !hasSufficientResources(gossip.Self.IpAddress) {
 		redirectUrl, status := deployTaskRemotely(request)
 		if status == http.StatusOK {
 			log.Info("Redirected request to remote CIDER node")
@@ -52,7 +53,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	log.Debug(request.Method, request.URL.Path, taskRequest)
+	log.Info(request.Method, request.URL.Path, taskRequest)
 
 	// generate a globally unique id for a task
 	taskId, err := generateUUID() 
@@ -84,7 +85,7 @@ func getTask(response http.ResponseWriter, request *http.Request) {
 	if isUntrustedSource(request, &response) {
 		return
 	}
-	log.Debug(request.Method, request.URL.Path)
+	log.Info(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
@@ -99,7 +100,7 @@ func abortTask(response http.ResponseWriter, request *http.Request) {
 	if isUntrustedSource(request, &response) {
 		return
 	}
-	log.Debug(request.Method, request.URL.Path)
+	log.Info(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
@@ -116,7 +117,7 @@ func deleteTask(response http.ResponseWriter, request *http.Request) {
 	if isUntrustedSource(request, &response) {
 		return
 	}
-	log.Debug(request.Method, request.URL.Path)
+	log.Info(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
 	if _, ok := Tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
@@ -133,9 +134,8 @@ func getTaskResult(response http.ResponseWriter, request *http.Request) {
 	if isUntrustedSource(request, &response) {
 		return
 	}
-	log.Debug(request.Method, request.URL.Path)
+	log.Info(request.Method, request.URL.Path)
 	taskId := chi.URLParam(request, "id")
-	log.Debug(taskId)
 	if _, ok := Tasks[taskId]; !ok {
 		response.WriteHeader(http.StatusNotFound)
 	} else if Tasks[taskId].Status != Stopped {

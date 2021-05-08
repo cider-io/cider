@@ -4,12 +4,18 @@ import (
 	"cider/config"
 	"cider/gossip"
 	"cider/log"
+	"errors"
 	"encoding/json"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
 )
+
+// TODO these should be moved to Task.Requirements
+const MinCores = 1
+const MinRam = 1000000000 // 1 GB
+const MaxLoad = 5
 
 // isLocalIp: Check if IP refers to this node itself
 func isLocalIp(ip string) bool {
@@ -39,20 +45,32 @@ func isUntrustedSource(request *http.Request, response *http.ResponseWriter) boo
 	return !trusted
 }
 
-func insufficientLocalResources() bool {
-	// FIXME look at cores and RAM and load
-	return (gossip.Self.IpAddress != "172.22.94.255")
+// hasSufficientResources: Determines if a node has enough resources to run a given task
+// TODO this function should determine this using Task.Requirements
+func hasSufficientResources(ip string) bool {
+	if member, ok := gossip.Self.MembershipList[ip]; ok {
+		return (member.Profile.Cores >= MinCores) && (member.Profile.Ram >= MinRam) && (member.Profile.Load <= MaxLoad)
+	}
+	return false
 }
 
-// TODO should take task's expected resource requirements into consideration
-func findRemoteCiderNode() string {
-	// FIXME 
-	return "172.22.94.255"
+// findCapableRemoteCiderNode: Find a remote CIDER node that meets the minimum resource requirements for a given task
+func findCapableRemoteCiderNode() (string, error) {
+	for ip, _ := range gossip.Self.MembershipList {
+		if hasSufficientResources(ip) {
+			return ip, nil
+		}
+	}
+	return "", errors.New("Cannot find a capable remote CIDER node")
 }
 
 // deployTaskRemotely: Try to deploy the task to a remote CIDER node
 func deployTaskRemotely(requestToForward *http.Request) (string, int) {
-	remoteNodeIp := findRemoteCiderNode()
+	remoteNodeIp, err := findCapableRemoteCiderNode()
+	if err != nil {
+		log.Warning(err)
+		return "", http.StatusInternalServerError
+	}
 	remoteUrl := "http://" + remoteNodeIp + ":" + strconv.Itoa(config.ApiPort) + "/tasks"
 
 	// PUT the task to the remote CIDER node
@@ -75,7 +93,6 @@ func deployTaskRemotely(requestToForward *http.Request) (string, int) {
 			log.Warning(err)
 			return "", http.StatusInternalServerError
 		}
-		log.Debug(string(body))
 		var task Task
 		err = json.Unmarshal(body, &task)
 		if err != nil {

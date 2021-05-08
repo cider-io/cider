@@ -29,7 +29,6 @@ func (status TaskStatus) MarshalJSON() ([]byte, error) {
 }
 
 func (status *TaskStatus) UnmarshalJSON(data []byte) error {
-	log.Debug(strings.Trim(string(data), "\""))
 	taskStatus, ok := stringToStatus[strings.Trim(string(data), "\"")] // strip " "
 	*status = taskStatus
 	if !ok {
