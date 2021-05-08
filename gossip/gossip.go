@@ -6,6 +6,7 @@ import (
 	"cider/handle"
 	"cider/log"
 	"cider/util"
+	"cider/sysinfo"
 	"encoding/gob"
 	"errors"
 	"flag"
@@ -17,8 +18,7 @@ import (
 	"time"
 )
 
-type Profile struct { // Node profile
-	Reputation int
+type ResourceProfile struct {
 	Load       int
 	Cores      int
 	Ram        int
@@ -28,14 +28,14 @@ type Member struct { // membership list entry
 	Heartbeat   int
 	LastUpdated time.Time
 	Failed      bool
-	NodeProfile Profile
+	Profile     ResourceProfile
 }
 
 type Node struct {
 	IpAddress      string
 	MembershipList map[string]Member // maps member IP address to Member struct
-	TFail          time.Duration
-	TRemove        time.Duration
+	FailureTimeout time.Duration
+	RemovalTimeout time.Duration
 }
 
 var Self Node
@@ -46,25 +46,27 @@ func heartbeat() {
 	me := Self.MembershipList[Self.IpAddress]
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
-	me.NodeProfile.Load = exportapi.GetCurrentLoad()
+	me.Profile.Load = exportapi.Load
 	Self.MembershipList[Self.IpAddress] = me
 
-	//Observation: Since Keys is not expected to include selfNode, len of key can exclude selfNode
-	keys := make([]string, 0, len(Self.MembershipList))
-	for k, val := range Self.MembershipList {
-		if k != Self.IpAddress && !val.Failed {
-			keys = append(keys, k)
+	// activeMembers doesn't include the node itself
+	activeMembers := make([]string, 0, len(Self.MembershipList))
+	for ip, member := range Self.MembershipList {
+		if ip != Self.IpAddress && !member.Failed {
+			activeMembers = append(activeMembers, ip)
 		}
 	}
 
-	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))),
-		float64(len(keys)))
+	// gossip to a max of log_2(cluster_size) members
+	logBase2 := math.Round(math.Log2(float64(len(Self.MembershipList))))
+	numActiveMembers := float64(len(activeMembers))
+	numGossipNodes := int(math.Min(logBase2, numActiveMembers))
 
-	if len(keys) > 0 {
+	if len(activeMembers) > 0 {
 		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
-		for i := 0; i < int(numGossipNodes); i++ {
-			connection, err := net.Dial("udp", keys[i]+":"+strconv.Itoa(config.GossipPort))
+		rand.Shuffle(len(activeMembers), func(i, j int) { activeMembers[i], activeMembers[j] = activeMembers[j], activeMembers[i] })
+		for i := 0; i < numGossipNodes; i++ {
+			connection, err := net.Dial("udp", activeMembers[i]+":"+strconv.Itoa(config.GossipPort))
 			handle.Fatal(err)
 			encoder := gob.NewEncoder(connection)
 			encoder.Encode(Self.MembershipList)
@@ -76,17 +78,13 @@ func heartbeat() {
 // updateMembershipList: Update the membership list based on gossips from neighbors
 func updateMembershipList(neighborsMembershipList map[string]Member) {
 	for ip, member := range neighborsMembershipList {
-		resolvedIps, err := net.LookupIP(ip)
-		handle.Fatal(err)
-		resolvedIp := resolvedIps[0].To4().String()
-		if resolvedIp != Self.IpAddress {
-			localVal, ok := Self.MembershipList[resolvedIp]
+		if ip != Self.IpAddress {
+			localVal, ok := Self.MembershipList[ip]
 			if (ok && !localVal.Failed && member.Heartbeat > localVal.Heartbeat) || !ok {
 				member.LastUpdated = time.Now()
-				Self.MembershipList[resolvedIp] = member
+				Self.MembershipList[ip] = member
 			}
 		}
-		prettyPrintMember(resolvedIp, Self.MembershipList[resolvedIp])
 	}
 }
 
@@ -108,16 +106,18 @@ func listenForGossip() {
 func failureDetection() {
 	numGossipNodes := math.Max(math.Round(math.Log2(float64(len(Self.MembershipList)))), 1)
 
-	Self.TFail = 5 * time.Duration(numGossipNodes) * time.Second
-	Self.TRemove = 2 * Self.TFail
+	// FIXME replace these magic numbers
+	Self.FailureTimeout = 5 * time.Duration(numGossipNodes) * time.Second
+	Self.RemovalTimeout = 2 * Self.FailureTimeout
 
+	// remove failed nodes that have exceed the removal timeout
 	removeList := make([]string, 0, len(Self.MembershipList))
 	for ip, member := range Self.MembershipList {
-		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.TFail {
+		if ip != Self.IpAddress && !member.Failed && time.Since(member.LastUpdated) > Self.FailureTimeout {
 			member.Failed = true
 			Self.MembershipList[ip] = member
 			log.Debug("Node marked as failed:", ip)
-		} else if member.Failed && time.Since(member.LastUpdated) > Self.TRemove {
+		} else if member.Failed && time.Since(member.LastUpdated) > Self.RemovalTimeout {
 			removeList = append(removeList, ip)
 		}
 	}
@@ -128,13 +128,11 @@ func failureDetection() {
 	}
 
 	if len(removeList) > 0 && len(Self.MembershipList) == 1 {
-		handle.Fatal(errors.New("this node has possibly been marked as " +
-			"failed by all other nodes in the cluster. Attempt to restart"))
+		log.Warning("Are you connected to the network? We can't find any active CIDER nodes.")
 	}
 }
 
-// gossip: Gossips the local membership list to N random neighbors
-// 				N = log2(TOTAL_CLUSTER_NODES)
+// gossip: Gossips the local membership list to at most log2(cluster_size) random neighbors
 func gossip() {
 	startTime := time.Now()
 	for {
@@ -151,38 +149,43 @@ func Start() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	// CLI flags
+	introducer := flag.String("introducer", "sp21-cs525-g17-01.cs.illinois.edu", "Introducer's hostname or IP address")
+	resourceConstrained := flag.Bool("resource-constrained", false, "Simulate resource constrained nodes")
+	flag.Parse()
+
+	// intialize node profile
+	sysInfo := sysinfo.GetSysInfo()
+	log.Info(sysInfo)
+
+	profile := ResourceProfile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
+	if *resourceConstrained { // simulate resource-constrained nodes that cannot be used for compute
+		profile = ResourceProfile{Load: 0, Cores: 0, Ram: 0}
+	}
+	// profile.Load is updated when we heartbeat
+
 	// initialize node
 	ipAddress, err := util.GetIpAddress()
 	handle.Fatal(err)
 	membershipList := make(map[string]Member)
-	// TODO: add introducer to the membership list after adding the introducer cli arg
+	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false, Profile: profile}
 
-	membershipList[ipAddress] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-
-	// For Testing purposes only. Remove when we have a robust way of introducing nodes.
-	//
-	// membershipList["sp21-cs525-g17-01.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-	// membershipList["sp21-cs525-g17-02.cs.illinois.edu"] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-
-	// TODO: We would probably want to have larger TFail and TRemove in the begining to allow for init.
-	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, TFail: config.InitialTFail, TRemove: 2 * config.InitialTFail}
-
-	gatherSystemInfo()
-
+	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, FailureTimeout: config.InitialFailureTimeout, RemovalTimeout: 2 * config.InitialFailureTimeout}
 	prettyPrintNode("Initial node configuration: ", Self)
 
-	//introducer: it can be further improved through config file
-	introducer := flag.String("introducer", "config.txt", "The path to config file")
-	flag.Parse()
+	// resolve the introducer's hostname/ip to an ipv4 address
+	introducerIps, err := net.LookupIP(*introducer)
+	handle.Fatal(err)
+	introducerIp := introducerIps[0].To4().String()
 
-	if *introducer != ipAddress {
-		log.Info("Add introducer to the membershipList list: " + *introducer)
-		membershipList1 := make(map[string]Member)
-		membershipList1[*introducer] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-		updateMembershipList(membershipList1)
+	// add introducer to the membership list
+	if introducerIp != ipAddress {
+		membershipList[introducerIp] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
+		log.Info("Starting gossip")
+	} else {
+		log.Info("Starting gossip as the introducer")
 	}
-	log.Info("Starting gossip")
-
+	
 	go func() {
 		listenForGossip()
 		wg.Done()
