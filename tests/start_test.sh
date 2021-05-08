@@ -18,10 +18,17 @@ for i in {01..10}; do
     scp ../cider $host:.
     
     echo "Start cider on $host"
-    ssh $host "./cider >/dev/null 2>&1 &"
+    if [ $i -le 7 ]
+    then
+        echo " Resource constrained node"
+        ssh $host "./cider  --resource-constrained >/dev/null 2>&1 &"
+    else
+        echo " Regular node"
+        ssh $host "./cider >/dev/null 2>&1 &"
+    fi
     
     echo "Verify that cider is running on $host"
-    curl -X GET -i http://$host:6143/tasks
+    ssh $host 'curl -X GET -i http://localhost:6143/tasks'
     echo ""
 done
 
@@ -32,6 +39,7 @@ done
 #     4: test_pick_single_random,
 #     5: test_pick_one_random_per_iteration,
 #     6: test_pick_one_random_per_iteration_with_waits,
+#     7: test_end_to_end,
 # }
 echo "Using test option $1"
 

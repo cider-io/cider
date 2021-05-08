@@ -78,6 +78,19 @@ def single_request(host):
     assert result == expected, 'Incorrect result'
 
 
+def test_request():
+    host = 'localhost'
+    base_url = f'http://{host}:6143'
+
+    data = {}
+    data["data"] = [random.uniform(10, 20)]
+    data["function"] = "test"
+
+    logger.info(f'Sending data to {host}.')
+    response = requests.put(base_url+'/tasks', json=data)
+    logger.info(f'response: {response}')
+
+
 def test_pick_same_one_random(rseeds):
     # All the VMs will pick the same random node
     # to send the data for compute as we use
@@ -169,6 +182,16 @@ def test_pick_one_random_per_iteration_with_waits(rseeds):
         single_request(host)
 
 
+def test_end_to_end(rseeds):
+    # This tests the system end-to-end
+    random.seed(rseeds[1])
+    for i in range(ITERATIONS):
+        # Induce random wait times of upto 1s + log(10,2) each iteration
+        time.sleep(math.log2(10) + random.random())
+        logger.info(f'Iteration {i+1}')
+        test_request()
+
+
 test_map = {
     1: test_pick_same_one_random,
     2: test_pick_same_three_random,
@@ -176,6 +199,7 @@ test_map = {
     4: test_pick_single_random,
     5: test_pick_one_random_per_iteration,
     6: test_pick_one_random_per_iteration_with_waits,
+    7: test_end_to_end,
 }
 
 if __name__ == '__main__':

@@ -5,6 +5,5 @@ for i in {01..10}; do
     echo "Extracting logs from $host"
     mkdir $host
     ssh $host "grep 'METRIC' cider.log > metrics.log"
-    scp $host:test.log $host/.
-    scp $host:metrics.log $host/.
+    scp $host:*.log $host/.
 done
