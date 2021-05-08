@@ -5,8 +5,8 @@ import (
 	"cider/exportapi"
 	"cider/handle"
 	"cider/log"
-	"cider/util"
 	"cider/sysinfo"
+	"cider/util"
 	"encoding/gob"
 	"errors"
 	"flag"
@@ -22,6 +22,7 @@ type ResourceProfile struct {
 	Load       int
 	Cores      int
 	Ram        int
+	Reputation int
 }
 
 type Member struct { // membership list entry
@@ -47,6 +48,7 @@ func heartbeat() {
 	me.Heartbeat++
 	me.LastUpdated = time.Now()
 	me.Profile.Load = exportapi.Load
+	me.Profile.Reputation = exportapi.Reputation
 	Self.MembershipList[Self.IpAddress] = me
 
 	// activeMembers doesn't include the node itself
@@ -158,9 +160,10 @@ func Start() {
 	sysInfo := sysinfo.GetSysInfo()
 	log.Info(sysInfo)
 
-	profile := ResourceProfile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
+	// TODO: Reputation needs to be obtained from the persistent storage
+	profile := ResourceProfile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory, Reputation: 0}
 	if *resourceConstrained { // simulate resource-constrained nodes that cannot be used for compute
-		profile = ResourceProfile{Load: 0, Cores: 0, Ram: 0}
+		profile = ResourceProfile{Load: 0, Cores: 0, Ram: 0, Reputation: 0}
 	}
 	// profile.Load is updated when we heartbeat
 
@@ -185,7 +188,7 @@ func Start() {
 	} else {
 		log.Info("Starting gossip as the introducer")
 	}
-	
+
 	go func() {
 		listenForGossip()
 		wg.Done()

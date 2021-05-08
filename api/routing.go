@@ -4,8 +4,8 @@ import (
 	"cider/config"
 	"cider/gossip"
 	"cider/log"
-	"errors"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,7 +15,7 @@ import (
 // TODO these should be moved to Task.Requirements
 const MinCores = 1
 const MinRam = 1000000000 // 1 GB
-const MaxLoad = 5
+const MaxLoad = 500000
 
 // isLocalIp: Check if IP refers to this node itself
 func isLocalIp(ip string) bool {
@@ -27,7 +27,7 @@ func isTrustedRemote(ip string) bool {
 	// TODO Add authentication/authorization logic
 	// Currently, a trusted node is just one that's in our membership list
 	_, ok := gossip.Self.MembershipList[ip]
-	return ok 
+	return ok
 }
 
 func isUntrustedSource(request *http.Request, response *http.ResponseWriter) bool {
@@ -56,12 +56,36 @@ func hasSufficientResources(ip string) bool {
 
 // findCapableRemoteCiderNode: Find a remote CIDER node that meets the minimum resource requirements for a given task
 func findCapableRemoteCiderNode() (string, error) {
-	for ip, _ := range gossip.Self.MembershipList {
+	maxScore := -1.0
+	suitableNode := ""
+
+	for ip, node := range gossip.Self.MembershipList {
 		if hasSufficientResources(ip) {
-			return ip, nil
+			cores := float64(node.Profile.Cores)
+			// Adding a small delta to avoid potential divide by 0 error
+			load := float64(node.Profile.Load) + 0.0000000001
+			memory := float64(node.Profile.Ram)
+			reputation := float64(node.Profile.Reputation)
+
+			effectiveLoad := load / cores
+
+			// TODO: (potential) We need scaling parameters to adjust
+			//   priorities to each of the three factors:
+			// 	 		memory, effective load, reputation.
+			//   The scaling params should be based on the task that we are
+			//   looking to deploy.
+			score := (memory / effectiveLoad) + reputation
+
+			if score > maxScore {
+				maxScore = score
+				suitableNode = ip
+			}
 		}
 	}
-	return "", errors.New("Cannot find a capable remote CIDER node")
+	if suitableNode == "" {
+		return suitableNode, errors.New("cannot find a capable remote CIDER node")
+	}
+	return suitableNode, nil
 }
 
 // deployTaskRemotely: Try to deploy the task to a remote CIDER node
@@ -99,7 +123,8 @@ func deployTaskRemotely(requestToForward *http.Request) (string, int) {
 			log.Warning(err)
 			return "", http.StatusInternalServerError
 		}
+		log.Info("Redirected request to remote CIDER node:", remoteNodeIp)
 		return remoteUrl + "/" + task.Id, http.StatusOK
-	} 
-	return "", (*response).StatusCode	
+	}
+	return "", (*response).StatusCode
 }

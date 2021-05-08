@@ -17,6 +17,10 @@ var updateLoad chan int
 func handleLoadUpdates() {
 	for loadChange := range updateLoad {
 		exportapi.Load += loadChange
+		if loadChange < 0 {
+			// Reputation updates with the completion of tasks
+			exportapi.Reputation -= loadChange
+		}
 	}
 }
 

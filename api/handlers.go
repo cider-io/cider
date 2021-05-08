@@ -29,7 +29,6 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	if !hasSufficientResources(gossip.Self.IpAddress) {
 		redirectUrl, status := deployTaskRemotely(request)
 		if status == http.StatusOK {
-			log.Info("Redirected request to remote CIDER node")
 			response.Header().Set("Location", redirectUrl)
 			response.WriteHeader(http.StatusSeeOther)
 		} else {
@@ -56,7 +55,7 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 	log.Info(request.Method, request.URL.Path, taskRequest)
 
 	// generate a globally unique id for a task
-	taskId, err := generateUUID() 
+	taskId, err := generateUUID()
 	if err != nil {
 		log.Warning("Unable to generate UUID for task")
 		response.WriteHeader(http.StatusInternalServerError)
@@ -65,18 +64,18 @@ func deployTask(response http.ResponseWriter, request *http.Request) {
 
 	// initialize task
 	Tasks[taskId] = Task{
-		Id: taskId, 
-		Status: Deploying, 
-		Data: taskRequest.Data, 
-		Function: taskRequest.Function, 
-		Result: 0, Abort: make(chan bool), 
+		Id:       taskId,
+		Status:   Deploying,
+		Data:     taskRequest.Data,
+		Function: taskRequest.Function,
+		Result:   0, Abort: make(chan bool),
 		Metrics: TaskMetrics{
-			Id: taskId, 
-			Function: taskRequest.Function, 
+			Id:        taskId,
+			Function:  taskRequest.Function,
 			StartTime: time.Now().Format("15:04:05.000000")}}
 
 	// async launch task and immediately respond to the client
-	go runTask(taskId) 
+	go runTask(taskId)
 	writeStruct(&response, Tasks[taskId])
 }
 
