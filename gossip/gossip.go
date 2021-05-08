@@ -149,10 +149,19 @@ func Start() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	// CLI flags
+	introducer := flag.String("introducer", "sp21-cs525-g17-01.cs.illinois.edu", "Introducer's hostname or IP address")
+	resourceConstrained := flag.Bool("resource-constrained", false, "Simulate resource constrained nodes")
+	flag.Parse()
+
 	// intialize node profile
 	sysInfo := sysinfo.GetSysInfo()
 	log.Info(sysInfo)
+
 	profile := ResourceProfile{Load: 0, Cores: sysInfo.AvailableCores, Ram: sysInfo.TotalMemory}
+	if *resourceConstrained { // simulate resource-constrained nodes that cannot be used for compute
+		profile = ResourceProfile{Load: 0, Cores: 0, Ram: 0}
+	}
 	// profile.Load is updated when we heartbeat
 
 	// initialize node
@@ -164,21 +173,19 @@ func Start() {
 	Self = Node{IpAddress: ipAddress, MembershipList: membershipList, FailureTimeout: config.InitialFailureTimeout, RemovalTimeout: 2 * config.InitialFailureTimeout}
 	prettyPrintNode("Initial node configuration: ", Self)
 
-	// add introducer to the membership list 
-	introducer := flag.String("introducer", "sp21-cs525-g17-01.cs.illinois.edu", "Introducer's hostname or IP address")
-	flag.Parse()
-
 	// resolve the introducer's hostname/ip to an ipv4 address
 	introducerIps, err := net.LookupIP(*introducer)
 	handle.Fatal(err)
 	introducerIp := introducerIps[0].To4().String()
 
+	// add introducer to the membership list
 	if introducerIp != ipAddress {
 		membershipList[introducerIp] = Member{Heartbeat: 0, LastUpdated: time.Now(), Failed: false}
-		log.Info("Added introducer", introducerIp,  "to the membershipList list.")
+		log.Info("Starting gossip")
+	} else {
+		log.Info("Starting gossip as the introducer")
 	}
-	log.Info("Starting gossip")
-
+	
 	go func() {
 		listenForGossip()
 		wg.Done()

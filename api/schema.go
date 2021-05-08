@@ -1,7 +1,6 @@
 package api
 
 import (
-	"cider/log"
 	"bytes"
 	"errors"
 	"strings"
