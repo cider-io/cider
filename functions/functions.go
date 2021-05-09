@@ -14,12 +14,12 @@ import (
  * - []interface{}, for JSON arrays
  * - map[string]interface{}, for JSON objects
  * - nil for JSON null */
-type Data interface {}
+type Data interface{}
 
 var Map = map[string](func(Data, chan bool) (Data, error)){
-	"sum":  sum,
-	"max":  max,
-	"min":  min,
+	"sum": sum,
+	"max": max,
+	"min": min,
 	"sleep": sleep,
 }
 
