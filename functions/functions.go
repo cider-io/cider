@@ -26,7 +26,6 @@ var Map = map[string](func(Data, chan bool) (Data, error)){
 func sum(data Data, abort chan bool) (Data, error) {
 	result := 0.0
 
-	// see: https://golang.org/pkg/encoding/json/#Unmarshal
 	input, ok := data.([]interface{})
 	if !ok {
 		return result, errors.New("Expected input type []float64.")
@@ -101,7 +100,6 @@ func min(data Data, abort chan bool) (Data, error) {
 func sleep(data Data, abort chan bool) (Data, error) {
 	result := 0
 
-	// see: https://golang.org/pkg/encoding/json/#Unmarshal
 	sleepTime, ok := data.(float64)
 	if !ok {
 		return result, errors.New("Expected input type float64.")
