@@ -20,7 +20,7 @@ var Map = map[string](func(Data, chan bool) (Data, error)){
 	"sum": sum,
 	"max": max,
 	"min": min,
-	"sleep": sleep,
+	"test_sleep": test_sleep,
 }
 
 func sum(data Data, abort chan bool) (Data, error) {
@@ -96,8 +96,9 @@ func min(data Data, abort chan bool) (Data, error) {
 	return result, nil
 }
 
-// sleep: Sleeps for a specified delay and returns 1010.1010 when it wakes up
-func sleep(data Data, abort chan bool) (Data, error) {
+// test_sleep: Sleeps for a specified delay and returns 1010.1010 when it wakes up
+// This function is only used for testing purposes
+func test_sleep(data Data, abort chan bool) (Data, error) {
 	result := 0
 
 	sleepTime, ok := data.(float64)
