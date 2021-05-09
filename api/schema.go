@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cider/functions"
 	"bytes"
 	"errors"
 	"strings"
@@ -45,22 +46,22 @@ type TaskMetrics struct {
 }
 
 type Task struct {
-	Id       string      `json:"id"`
-	Status   TaskStatus  `json:"status"`
-	Function string      `json:"function"`
-	Data     []float64   `json:"-"` // ignore all fields other than Id/Status in the JSON representation
-	Result   float64     `json:"-"`
-	Error    string      `json:"-"`
-	Abort    chan bool   `json:"-"`
-	Metrics  TaskMetrics `Json:"-"`
+	Id       string      	 `json:"id"`
+	Status   TaskStatus  	 `json:"status"`
+	Function string      	 `json:"function"`
+	Data     functions.Data  `json:"-"` // ignore all fields other than Id/Status in the JSON representation
+	Result   functions.Data  `json:"-"`
+	Error    string      	 `json:"-"`
+	Abort    chan bool   	 `json:"-"`
+	Metrics  TaskMetrics 	 `Json:"-"`
 }
 
 type TaskRequest struct {
-	Function string    `json:"function"`
-	Data     []float64 `json:"data"`
+	Function string         `json:"function"`
+	Data     functions.Data `json:"data"`
 }
 
 type TaskResult struct {
-	Result float64 `json:"result"`
-	Error  string  `json:"error"`
+	Result functions.Data `json:"result"`
+	Error  string         `json:"error"`
 }
