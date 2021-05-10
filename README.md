@@ -1,4 +1,4 @@
-# [CIDER: *C*ooperative *I*n-home *D*istributed *E*fficient *R*esource Allocation Protocol](./docs/CIDER.pdf)
+# CIDER: *C*ooperative *I*n-home *D*istributed *E*fficient *R*esource Allocation Protocol
 
 Read our system paper [here](./docs/CIDER.pdf).
 
