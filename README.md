@@ -1,4 +1,6 @@
-# CIDER: **C**ooperative **I**n-home **D**istributed **E**fficient **R**esource Allocation Protocol
+# [CIDER: *C*ooperative *I*n-home *D*istributed *E*fficient *R*esource Allocation Protocol](./docs/CIDER.pdf)
+
+Read our system paper [here](./docs/CIDER.pdf).
 
 ## Quickstart
 ```bash
