@@ -2,7 +2,6 @@
 *.exe
 cider
 *.zip
-*.pdf
 *.DS_Store
 *.vscode
 *checkpoint.ipynb
